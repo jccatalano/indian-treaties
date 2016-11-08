@@ -1,0 +1,38 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(rvest)
+library(magrittr)
+```
+
+```{r}
+test_treaty <- read_html("C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/apa0598.htm")
+
+
+```
+
+```{r}
+title <- test_treaty %>%
+  html_nodes("h4 center") %>%
+  html_text()
+
+title
+
+treaty_descpription <- test_treaty %>%
+  html_nodes("p i") %>%
+  html_text()
+
+treaty_descpription
+
+body <- test_treaty %>%
+  html_nodes("body p") %>%
+  html_text()
+
+body
+
+
+```
+
