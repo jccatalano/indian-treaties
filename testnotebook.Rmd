@@ -17,7 +17,7 @@ I then loaded the package rvest in order to parse the htm documents created usin
 ```{r}
 test_treaty <- read_html("C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/apa0598.htm")
 
- 
+file <- "C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/apa0598.htm"
 ```
 
 ```{r}
@@ -30,13 +30,15 @@ title <- title[c(1)]
 
 treaty_descpription <- test_treaty %>%
   html_nodes("p i") %>%
-  html_text()
+  html_text() %>% 
+  str_c(collapse = " ")
 
 treaty_descpription
 
 body <- test_treaty %>%
   html_nodes("body p") %>%
-  html_text()
+  html_text() %>% 
+  str_c(collapse = " ")
 
 body
 
@@ -45,32 +47,45 @@ body
 
 ```{r}
 parser <- function(file) {
-  trt <- read_html(file) %>% 
+  message("Parsing ", file)
+  trt <- read_html(file) 
    
   title <- trt %>%
   html_nodes("h4 center") %>%
   html_text()
-
-treaty_descpription <- trt %>%
-  html_nodes("p i") %>%
-  html_text()
-
-
-body <- trt %>%
-  html_nodes("body p") %>%
-  html_text()
   
-read_html(file)
+  title <- title[1]
 
-  data_frame(file = file, title = title[c(1)], body = body, description = treaty_descpription)
+  treaty_descpription <- trt %>%
+  html_nodes("p i") %>%
+  html_text()%>%
+  str_c(collapse= " ")
+
+
+  body <- trt %>%
+  html_nodes("body p") %>%
+  html_text() %>%
+  str_c(collapse= "\n\n")
+  
+  data_frame(file = file, title = title, body = body,
+             description = treaty_descpription)
+  
 }
 ```
 
 ```{r}
-file_to_df <- failwith(NULL, parser)
+# file_to_df <- failwith(NULL, parser)
 
-parsed <- pblapply(test_treaty, file_to_df)
+treaty_filenames <- list.files("C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/",
+                               pattern = "\\.htm",
+                               full.names = TRUE)
+
+parsed <- map_df(treaty_filenames, parser)
 
 ```
+```{r}
+
+```
+
 
 
