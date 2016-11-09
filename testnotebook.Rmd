@@ -89,8 +89,15 @@ parsed <- map_df(treaty_filenames, parser)
 
 ##Text Reuse Exploraiton
 ```{r}
+n <- basename(f) %>% stringr::str_replace("\\.txt", "")
 docs <- parsed$body
-names(docs) <- basename(parsed$title)
+names(doc) <-basename((docs)) 
+                        
+str_replace(docs, "C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/", " ")
+
+
+docs <- parsed$body
+names(docs) <- basename(parsed$file)
 corpus <- TextReuseCorpus(text = docs, meta = list(parsed$title),
                           tokenizer = tokenize_ngrams, n = 5,                                               progress = FALSE)
 ```
@@ -112,16 +119,10 @@ candidates[candidates$score > 0.1, ]
 ```
 
 ##Minhash
-I am going to use hashes to reduce down the number of comparisions computed by eliminating uneccessary comparisons (texts matched against themselves). This requires created a new corpus.  
+I am going to use hashes to reduce down the number of comparisions computed by eliminating uneccessary comparisons (texts matched against themselves). This requires creating a new corpus.  
 ```{r}
 
 minhash <- minhash_generator(n = 240, seed = 3552)
-
-
-
-docs <- parsed$body
-
-names(docs) <- basename(parsed$title)
 
 corpus2 <- TextReuseCorpus(text = docs, meta = list(parsed$title),
                           tokenizer = tokenize_ngrams, n = 5,
@@ -142,13 +143,24 @@ buckets <- lsh(corpus2, bands = 80, progress = FALSE)
 buckets
 ```
 ```{r}
-baxter_matches <- lsh_query(buckets, "19000630400")
+baxter_matches <- lsh_query(buckets, "apa0598.htm")
 baxter_matches
+
 candidates <- lsh_candidates(buckets)
 candidates
 ```
+```{r}
+lsh_compare(candidates, corpus2, jaccard_similarity, progress = FALSE)
+
+similarities <-lsh_compare(candidates, corpus2, jaccard_similarity, progress = FALSE)
+```
+
+Histogram of similarities
+```{r} 
+hist(similarities$score, breaks = 10) 
 
 
+```
 
 
 
