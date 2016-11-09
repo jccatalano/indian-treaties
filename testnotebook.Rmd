@@ -12,6 +12,8 @@ library(tidyverse)
 library(stringr)
 library(pbapply)
 library(parallel)
+library(textreuse)
+
 ```
 I then loaded the package rvest in order to parse the htm documents created using Wget.
 ```{r}
@@ -82,10 +84,72 @@ treaty_filenames <- list.files("C:/Users/Joshua/Documents/wget_treaties/digital.
 
 parsed <- map_df(treaty_filenames, parser)
 
+
+```
+
+##Text Reuse Exploraiton
+```{r}
+docs <- parsed$body
+names(docs) <- basename(parsed$title)
+corpus <- TextReuseCorpus(text = docs, meta = list(parsed$title),
+                          tokenizer = tokenize_ngrams, n = 5,                                               progress = FALSE)
+```
+###Pairwise Comparison
+```{r}
+
+comparisons <- pairwise_compare(corpus, jaccard_similarity, progress = FALSE)
+comparisons[1:4, 1:4]
+
+
+```
+Here the matrix is converted to a data frame and only the results with a score greater than 0.1 are kept. 
+
+```{r}
+candidates <- pairwise_candidates(comparisons)
+candidates[candidates$score > 0.1, ]
+
+
+```
+
+##Minhash
+I am going to use hashes to reduce down the number of comparisions computed by eliminating uneccessary comparisons (texts matched against themselves). This requires created a new corpus.  
+```{r}
+
+minhash <- minhash_generator(n = 240, seed = 3552)
+
+
+
+docs <- parsed$body
+
+names(docs) <- basename(parsed$title)
+
+corpus2 <- TextReuseCorpus(text = docs, meta = list(parsed$title),
+                          tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE,
+                          progress = FALSE)
+
 ```
 ```{r}
 
+head(minhashes(corpus2[[1]]))
+length(minhashes(corpus2[[1]]))
 ```
+```{r}
+lsh_threshold(h = 100, b = 50)
+
+
+buckets <- lsh(corpus2, bands = 80, progress = FALSE)
+buckets
+```
+```{r}
+baxter_matches <- lsh_query(buckets, "19000630400")
+baxter_matches
+candidates <- lsh_candidates(buckets)
+candidates
+```
+
+
+
 
 
 
