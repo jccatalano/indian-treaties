@@ -21,7 +21,7 @@ test_treaty <- read_html("C:/Users/Joshua/Documents/wget_treaties/digital.librar
 
 file <- "C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/apa0598.htm"
 ```
-
+Here I tested a single treaty to ensure that I was able to extract the correct information from the CSS. Becasue there were two lines with the same CSS selector, I chose to keep only the first in order to create my "titles." The `str_c(collapse = " ")` combined the numerous body paragraphs into a single character. 
 ```{r}
 title <- test_treaty %>%
   html_nodes("h4 center") %>%
@@ -39,14 +39,23 @@ treaty_descpription
 
 body <- test_treaty %>%
   html_nodes("body p") %>%
-  html_text() %>% 
-  str_c(collapse = " ")
+  html_text() #%>% 
+    #str_c(collapse = " ")
 
-body
+body <- body[-1]
 
+body <- str_c(body, collapse = " ")
+
+year <- test_treaty %>%
+   html_nodes("h4 center") %>%
+   html_text () %>%
+   str_extract("\\d{4}") %>%
+   as.integer()
+
+year <-year[c(1)]
 
 ```
-
+Here I modified a parser function from Lincoln Mullen's Github repository, "gulag-names," to use on my list of files and turn them into a data frame.
 ```{r}
 parser <- function(file) {
   message("Parsing ", file)
@@ -66,15 +75,27 @@ parser <- function(file) {
 
   body <- trt %>%
   html_nodes("body p") %>%
-  html_text() %>%
-  str_c(collapse= "\n\n")
+  html_text() 
+
+body <- body[-1]
+
+body <- str_c(body, collapse= "\n\n") 
+
+  
+  year <- trt %>%
+   html_nodes("h4 center") %>%
+   html_text () %>%
+   str_extract("\\d{4}") %>%
+   as.integer()
+
+year <-year[1]
   
   data_frame(file = file, title = title, body = body,
-             description = treaty_descpription)
+             description = treaty_descpription, year = year)
   
 }
 ```
-
+Now, I finally loaded all of the treaties and ran them through the parser function shown above.
 ```{r}
 # file_to_df <- failwith(NULL, parser)
 
@@ -86,14 +107,19 @@ parsed <- map_df(treaty_filenames, parser)
 
 
 ```
+The end result is a data frame titled `parsed` that contains four columns corresponding to the elements that the parser function extracted (title, treaty_description, body) and the file. 
+
 
 ##Text Reuse Exploraiton
+Now that the treaties have been scraped from the internet, the important information has been extracted, and the needed informaiton has been put into a data frame, I can create my corpus for my text reuse exploration. 
+
+Below, I created the corpus out of the body columns of the `parsed` data frame. I chose to use the file names as the names of the documents because they were unique. For example, using the treaty names would result in several files containing the same name (this is because some nations signed multiple treaties with the United States in the same year). 
 ```{r}
-n <- basename(f) %>% stringr::str_replace("\\.txt", "")
-docs <- parsed$body
-names(doc) <-basename((docs)) 
+# n <- basename(f) %>% stringr::str_replace("\\.txt", "")
+# docs <- parsed$body
+# names(doc) <-basename((docs)) 
                         
-str_replace(docs, "C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/", " ")
+# (docs, "C:/Users/Joshua/Documents/wget_treaties/digital.library.okstate.edu/kappler/Vol2/treaties/", " ")
 
 
 docs <- parsed$body
@@ -102,6 +128,7 @@ corpus <- TextReuseCorpus(text = docs, meta = list(parsed$title),
                           tokenizer = tokenize_ngrams, n = 5,                                               progress = FALSE)
 ```
 ###Pairwise Comparison
+Now, that I had a corpus, I started to run some comparisons starting with a pairwise comparision that would provide a jaccard similarity score. 
 ```{r}
 
 comparisons <- pairwise_compare(corpus, jaccard_similarity, progress = FALSE)
@@ -109,13 +136,14 @@ comparisons[1:4, 1:4]
 
 
 ```
-Here the matrix is converted to a data frame and only the results with a score greater than 0.1 are kept. 
+Here the matrix is converted to a data frame and only the results with a score greater than 0.1 are shown. 
 
 ```{r}
 candidates <- pairwise_candidates(comparisons)
-candidates[candidates$score > 0.1, ]
 
+candidates[candidates$score > 0.2,]
 
+hist(candidates$score,  ylim=c(0,80),breaks = 200)
 ```
 
 ##Minhash
