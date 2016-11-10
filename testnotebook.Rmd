@@ -158,11 +158,7 @@ corpus2 <- TextReuseCorpus(text = docs, meta = list(parsed$title),
                           progress = FALSE)
 
 ```
-```{r}
 
-head(minhashes(corpus2[[1]]))
-length(minhashes(corpus2[[1]]))
-```
 ```{r}
 lsh_threshold(h = 100, b = 50)
 
@@ -186,7 +182,6 @@ similarities <-lsh_compare(candidates, corpus2, jaccard_similarity, progress = F
 Histogram of similarities
 ```{r} 
 hist(similarities$score, breaks = 10) 
-
 
 ```
 
