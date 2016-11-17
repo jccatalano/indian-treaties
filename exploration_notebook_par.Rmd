@@ -1,0 +1,70 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This notebook will explore text reuse in Indain treaties at the paragraph level. 
+```{r}
+library(rvest)
+library(magrittr)
+library(tidyverse)
+library(stringr)
+library(pbapply)
+library(parallel)
+library(textreuse)
+
+```
+
+###Creating the Corpus without Minhashes
+```{r createcorpus, cache=TRUE}
+corpus <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
+                          progress = FALSE)
+```
+
+###Creating the Corpus with Minhashes
+
+```{r createcorpus2, cache=TRUE}
+minhash <- minhash_generator(n = 240, seed = 3552)
+
+corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE,
+                          progress = FALSE)
+
+
+```
+
+
+
+```{r}
+
+lsh_threshold(h = 100, b = 50)
+
+buckets <- lsh(corpus2, bands = 80, progress = FALSE)
+buckets
+```
+
+###Finding Candidates
+```{r}
+#matches <- lsh_query(buckets, "19000630400")
+#matches
+candidates <- lsh_candidates(buckets)
+```
+
+### Comparing Candidates
+```{r}
+
+similarities <-lsh_compare(candidates, corpus2, jaccard_similarity)
+```
+
+Histogram of similarities
+```{r} 
+hist(similarities$score, breaks = 100) 
+```
+```{r}
+THRESHOLD <- 0.2
+```
+
