@@ -1,0 +1,67 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+This notebook will explore text reuse in Indain treaties at the paragraph level. 
+```{r}
+library(rvest)
+library(magrittr)
+library(tidyverse)
+library(stringr)
+library(pbapply)
+library(parallel)
+library(textreuse)
+
+```
+
+
+###Creating the Corpus with Minhashes
+
+```{r createcorpus2, cache=TRUE}
+treaties <- readRDS
+minhash <- minhash_generator(n = 240, seed = 3552)
+
+docs <- treaties$body
+names(docs) <- basename(treaties$file)
+
+corpus <- TextReuseCorpus(text = docs, meta = list(treaties$title), 
+                          tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE,
+                          progress = FALSE)
+
+```
+
+
+
+```{r}
+
+lsh_threshold(h = 100, b = 50)
+
+buckets <- lsh(corpus, bands = 80, progress = FALSE)
+```
+
+###Finding Candidates
+```{r}
+#matches <- lsh_query(buckets, "19000630400")
+#matches
+candidates <- lsh_candidates(buckets)
+```
+
+### Comparing Candidates
+```{r}
+
+similarities <-lsh_compare(candidates, corpus, jaccard_similarity)
+```
+
+Histogram of similarities
+```{r} 
+hist(similarities$score, breaks = 100) 
+```
+
+
