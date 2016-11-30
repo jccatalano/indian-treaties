@@ -24,8 +24,8 @@ library(textreuse)
 ###Creating the Corpus with Minhashes
 
 ```{r createcorpus2, cache=TRUE}
-treaties <- readRDS
-minhash <- minhash_generator(n = 240, seed = 3552)
+treaties <- readRDS("parsed_treaties.rds")
+minhash <- minhash_generator(n = 40, seed = 3552)
 
 docs <- treaties$body
 names(docs) <- basename(treaties$file)
@@ -41,9 +41,9 @@ corpus <- TextReuseCorpus(text = docs, meta = list(treaties$title),
 
 ```{r}
 
-lsh_threshold(h = 100, b = 50)
+lsh_threshold(h = 40, b = 20)
 
-buckets <- lsh(corpus, bands = 80, progress = FALSE)
+buckets <- lsh(corpus, bands = 20, progress = FALSE)
 ```
 
 ###Finding Candidates

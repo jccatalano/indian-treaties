@@ -26,7 +26,7 @@ corpus <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_tre
 ###Creating the Corpus with Minhashes
 
 ```{r createcorpus2, cache=TRUE}
-minhash <- minhash_generator(n = 240, seed = 3552)
+minhash <- minhash_generator(n = 40, seed = 3552)
 
 corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
                    pattern = "*.txt",
@@ -34,16 +34,21 @@ corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_tr
                           minhash_func = minhash, keep_tokens = TRUE,
                           progress = FALSE)
 
+wc <- wordcount(corpus2)
 
+corpus2 <- corpus2[wc >= 20]
+
+#saveRDS(corpus2, "minhashed_corpus_par_level.rds")
+#corpus2 <- readRDS("minhashed_corpus_par_level.rds")
 ```
 
 
 
 ```{r}
 
-lsh_threshold(h = 100, b = 50)
+lsh_threshold(h = 40, b = 20)
 
-buckets <- lsh(corpus2, bands = 80, progress = FALSE)
+buckets <- lsh(corpus2, bands = 20, progress = FALSE)
 buckets
 ```
 
@@ -51,7 +56,11 @@ buckets
 ```{r}
 #matches <- lsh_query(buckets, "19000630400")
 #matches
+
 candidates <- lsh_candidates(buckets)
+
+saveRDS(candidates,"candidates_par_level.rds")
+#candidates <- readRDS("candidates_par_level.rds")
 ```
 
 ### Comparing Candidates
@@ -66,5 +75,21 @@ hist(similarities$score, breaks = 100)
 ```
 ```{r}
 THRESHOLD <- 0.2
+``` 
+
+```{r}
+get_treaty <- function(x) {
+  str_sub(x, 1, 7)
+}
+similarities$a %>% sample(10) %>% get_treaty()
+
+
+similarities %>% 
+  mutate(treaty_a = get_treaty(a),
+         treaty_b = get_treaty(b)) %>% 
+  count(treaty_a, treaty_b) %>% 
+  arrange(desc(n)) %>% 
+  filter(treaty_a != treaty_b) %>%
+  View
 ```
 
