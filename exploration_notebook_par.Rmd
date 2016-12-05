@@ -12,6 +12,11 @@ library(stringr)
 library(pbapply)
 library(parallel)
 library(textreuse)
+library(dplyr)
+library(igraph)
+library(ggplot2)
+library(stringr)
+library(data.table)
 
 ```
 
@@ -36,7 +41,7 @@ corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_tr
 
 wc <- wordcount(corpus2)
 
-corpus2 <- corpus2[wc >= 20]
+corpus2 <- corpus2[wc >= 40]
 
 #saveRDS(corpus2, "minhashed_corpus_par_level.rds")
 #corpus2 <- readRDS("minhashed_corpus_par_level.rds")
@@ -59,8 +64,9 @@ buckets
 
 candidates <- lsh_candidates(buckets)
 
-saveRDS(candidates,"candidates_par_level.rds")
+#saveRDS(candidates,"candidates_par_level.rds")
 #candidates <- readRDS("candidates_par_level.rds")
+ 
 ```
 
 ### Comparing Candidates
@@ -73,9 +79,16 @@ Histogram of similarities
 ```{r} 
 hist(similarities$score, breaks = 100) 
 ```
+Filtering out the candidates that turned out not to be matches. 
 ```{r}
-THRESHOLD <- 0.2
+matches <- filter(similarities, score> .2)
+hist(matches$score, breaks = 100)
 ``` 
+
+```{r}
+
+```
+
 
 ```{r}
 get_treaty <- function(x) {
@@ -91,5 +104,99 @@ similarities %>%
   arrange(desc(n)) %>% 
   filter(treaty_a != treaty_b) %>%
   View
+
+
+matches %>% 
+  mutate(treaty_a = get_treaty(a),
+         treaty_b = get_treaty(b)) %>% 
+  count(treaty_a, treaty_b) %>% 
+  arrange(desc(n)) %>% 
+  filter(treaty_a != treaty_b) %>%
+   View
+
+
+fd_matches =  (matches %>% mutate(treaty_a = get_treaty(a),
+         treaty_b = get_treaty(b)) %>% 
+  count(treaty_a, treaty_b) %>% 
+  arrange(desc(n)) %>% 
+  filter(treaty_a != treaty_b)) 
+```
+
+Making a Network Graph
+```{r}
+
+sample_graph <- graph.data.frame(fd_matches,directed = FALSE)
+
+plot(sample_graph, 
+     layout = layout.auto,
+    vertex.label.cex = 0.7,
+    margin = -0.6,
+     vertex.size = 1,
+    edge.width = fd_matches$n >3)
+    
+  
+
+```
+```{r}
+document_id <- basename(parsed_treaties$file) %>% str_replace("\\.htm", "")
+
+documents <- data_frame(document_id = fd_matches$treaty_a) %>% 
+  left_join(parsed_treaties, by ="document_id")
+
+
+documents <- data_frame(document_id = rownames(dtm)) %>% 
+  left_join(us_subjects_moml, by = "document_id")  
+  
+
+
+
+filenames <- str_c("treaty-paragraphs/", doc_id, ".txt")
+
+  
+documents <- fd_matches(basename = fd_matches$treaty_a) %>% 
+  leftjoin (parsed_treaties, by ="basename")
+```
+
+```{r}
+documents <- data_frame(basename = fd_matches$treaty_a) %>% 
+  left_join(parsed_treaties, by ="basename")
+```
+
+```{r}
+
+edges_n <- fd_matches$n
+
+codes_g <- graph_from_data_frame(edges_n, directed = TRUE)
+
+
+minimum_n <- 50
+minimum_percent <- 0.20
+top_matches <- 2
+
+edges_n <- 
+  summary_matches %>%
+  filter(!is.na(match_code),
+         sections_borrowed >= minimum_n |
+           percent_borrowed >= minimum_percent) %>%
+  select(borrower_code, match_code, sections_borrowed) %>%
+  group_by(borrower_code) %>%
+  top_n(top_matches, sections_borrowed) %>%
+  arrange(desc(sections_borrowed)) %>%
+  filter(!(extract_state(match_code) == head(extract_state(match_code), 1) &
+             match_code != head(match_code, 1) &
+             extract_state(match_code) != extract_state(borrower_code))) %>%
+  ungroup()
+
+codes_g <- graph_from_data_frame(edges_n, directed = TRUE)
+
+
+node_distances <- distances(codes_g,
+                            mode = "out",
+                            to = c("NY1848", "NY1849", "NY1850",
+                                   "NY1851", "NY1853"),
+                            algorithm = "unweighted") %>%
+                    apply(1, min, na.rm = TRUE)
+nodes_n <- data_frame(name = names(node_distances),
+                      distance = node_distances)
 ```
 
