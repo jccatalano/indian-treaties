@@ -17,6 +17,7 @@ library(igraph)
 library(ggplot2)
 library(stringr)
 library(data.table)
+library(Matrix)
 
 ```
 
@@ -26,6 +27,7 @@ corpus <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_tre
                    pattern = "*.txt",
                    full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
                           progress = FALSE)
+saveRDS()
 ```
 
 ###Creating the Corpus with Minhashes
@@ -161,42 +163,64 @@ documents <- fd_matches(basename = fd_matches$treaty_a) %>%
 documents <- data_frame(basename = fd_matches$treaty_a) %>% 
   left_join(parsed_treaties, by ="basename")
 ```
-
+Affinity Propogation Clustering
 ```{r}
 
-edges_n <- fd_matches$n
+scores_clustering <- matches
 
-codes_g <- graph_from_data_frame(edges_n, directed = TRUE)
+section_names <- lsh_subset(scores_clustering)
 
+lookup <- data_frame(section_names, index = 1:length(section_names))
 
-minimum_n <- 50
-minimum_percent <- 0.20
-top_matches <- 2
+lookup
 
-edges_n <- 
-  summary_matches %>%
-  filter(!is.na(match_code),
-         sections_borrowed >= minimum_n |
-           percent_borrowed >= minimum_percent) %>%
-  select(borrower_code, match_code, sections_borrowed) %>%
-  group_by(borrower_code) %>%
-  top_n(top_matches, sections_borrowed) %>%
-  arrange(desc(sections_borrowed)) %>%
-  filter(!(extract_state(match_code) == head(extract_state(match_code), 1) &
-             match_code != head(match_code, 1) &
-             extract_state(match_code) != extract_state(borrower_code))) %>%
-  ungroup()
+scores_clustering <- scores_clustering %>% 
+  left_join(lookup, by = c("a" = "section_names")) %>% 
+  left_join(lookup, by = c("b" = "section_names")) 
 
-codes_g <- graph_from_data_frame(edges_n, directed = TRUE)
+scores_clustering
+
+n <- length(section_names)
+m <- sparseMatrix(i = scores_clustering$index.x,
+                  j = scores_clustering$index.y,
+                  x = scores_clustering$score,
+                  dims = c(n, n), symmetric = TRUE)
+colnames(m) <- section_names
+rownames(m) <- section_names
 
 
-node_distances <- distances(codes_g,
-                            mode = "out",
-                            to = c("NY1848", "NY1849", "NY1850",
-                                   "NY1851", "NY1853"),
-                            algorithm = "unweighted") %>%
-                    apply(1, min, na.rm = TRUE)
-nodes_n <- data_frame(name = names(node_distances),
-                      distance = node_distances)
+
+cluster_cache <- "cache/clusters.rds"
+if (!file.exists(cluster_cache)) {
+  timing <- system.time(
+    clu <- apcluster(s = m,
+                     maxits = 100e3, convits = 10e3,
+                     q = 0,
+                     lam = 0.975,
+                     seed = 42325, 
+                     includeSim = TRUE,
+                     )
+  )
+  require("RPushbullet")
+  pbPost(title = "Clustering finished",
+         body = paste0("Finished in ", timing[["elapsed"]], "."))
+  saveRDS(clu, cluster_cache)
+} else {
+  clu <- readRDS(cluster_cache)
+}
+
+
+clu <- apcluster(negDistMat(r = 2), dtm3, details = TRUE)
+ap_clusters <- clu@clusters 
+names(ap_clusters) <- names(clu@exemplars)
+ap_clusters <- lapply(ap_clusters, names)
+ap_clusters <- map_df(names(ap_clusters), function(x) {
+  tibble(exemplar = x, document_id = ap_clusters[[x]])
+})
+ap_clusters %>% left_join(us_items, by = "document_id") %>% View
 ```
+
+
+
+
 
