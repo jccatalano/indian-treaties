@@ -22,8 +22,6 @@ library(tokenizers)
 library(text2vec)
 library(broom)
 library(apcluster)
-library(RPushbullet)
-library(curl)
 ```
 
 ###Creating the Corpus without Minhashes
@@ -145,6 +143,8 @@ plot(sample_graph,
 
 ```
 ```{r}
+
+#Attempt to bring in Years
 document_id <- basename(parsed_treaties$file) %>% str_replace("\\.htm", "")
 
 documents <- data_frame(document_id = fd_matches$treaty_a) %>% 
@@ -169,23 +169,16 @@ documents <- data_frame(basename = fd_matches$treaty_a) %>%
   left_join(parsed_treaties, by ="basename")
 ```
 
-PCA at the paragraph level. 
+##PCA at the paragraph level. 
 ```{r}
 #for paragraph level 
 files <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs",                    pattern = "*.txt",
                   full.names = TRUE)
 
-files <- parsed_treaties
 
-
-
-get_treaty(files)
-
-
-#Modified function
 reader <- function(f) {
   require(stringr)
-  n <- parsed_treaties$file %>% str_replace("\\.htm", "")
+  n <- parsed_treaties$file %>% str_replace("\\.txt", "")
   doc <- readr::read_file(f)
   names(doc) <- n
   doc
@@ -260,11 +253,12 @@ m <- sparseMatrix(i = scores_clustering$index.x,
 colnames(m) <- section_names
 rownames(m) <- section_names
 
-cluster_cache <- "cache/clusters.rds"
+
+cluster_cache <- "C:/Users/Joshua/Documents/rdata/indian_treaties//clusters.rds"
 if (!file.exists(cluster_cache)) {
   timing <- system.time(
     clu <- apcluster(s = m,
-                     maxits = 100e3, convits = 10e3,
+                     maxits = 1e3, convits = 100,
                      q = 0,
                      lam = 0.975,
                      seed = 42325, 
@@ -272,13 +266,67 @@ if (!file.exists(cluster_cache)) {
                      )
   )
   saveRDS(clu, cluster_cache)
-} else {
+ } else {
   clu <- readRDS(cluster_cache)
 }
 
 clusters <- clu@clusters 
 names(clusters) <- names(clu@exemplars)
 clusters <- lapply(clusters, names)
+
+
+exemplars_corpus <- corpus2[names(clusters)]
+exemplars_scores <- exemplars_corpus %>% 
+  lsh(bands = 40) %>% 
+  lsh_candidates() %>% 
+  lsh_compare(exemplars_corpus, jaccard_similarity) %>% 
+  arrange(desc(score))
+
+boxplot(exemplars_scores$score)
+hist(exemplars_scores$score)
+
+```
+
+Creating a Data Frame
+```{r}
+clusters_df <- clusters %>% 
+  seq_along() %>% 
+  lapply(function(i) {
+    exemplar <- names(clusters)[i]
+    doc <- clusters[[i]]
+    data_frame(exemplar, doc, cluster_id = i)
+  }) %>% 
+  bind_rows() %>% 
+  group_by(cluster_id) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  arrange(desc(n))
+```
+
+
+
+
+```{r}
+join_threshold <- 0.15
+exemplars_scores <- exemplars_scores %>% 
+  filter(score >= 0.15)
+
+join_clusters <- function(row) {
+  exs <- c(row$a, row$b)
+  minval <- which.min(extract_date(exs))
+  exemplar <- exs[minval]
+  duplicate <- exs[ifelse(minval == 1, 2, 1)]
+  clusters[[exemplar]] <<- c(clusters[[exemplar]], clusters[[duplicate]])
+  clusters[[duplicate]] <<- NULL
+  dplyr::as_data_frame(row)
+}
+
+exemplars_scores %>% 
+  rowwise() %>% 
+  do(join_clusters(.))
+
+hist(exemplars_scores$score)
+
 
 ```
 
