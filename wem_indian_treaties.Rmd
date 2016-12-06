@@ -1,0 +1,36 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(text2vec)
+library(magrittr)
+library(wordVectors)
+library(tsne)
+library(ggplot2)
+library(tibble)
+```
+
+```{r}
+
+prep_word2vec("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-complete","treaty_docs.txt",lowercase=T) 
+
+treaty_model = train_word2vec("treaty_docs.txt",output="treaty_doc_vectors.bin",threads = 6,vectors = 100,window=12)
+```
+
+```{r}
+treaty_model %>% nearest_to(treaty_model[["race"]])
+
+```
+
+```{r}
+treaty_model %>% nearest_to(treaty_model[["land"]])
+                                          
+```
+
+Clustering
+```{r}
+plot(treaty_model)
+```
+
