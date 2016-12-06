@@ -18,7 +18,12 @@ library(ggplot2)
 library(stringr)
 library(data.table)
 library(Matrix)
-
+library(tokenizers)
+library(text2vec)
+library(broom)
+library(apcluster)
+library(RPushbullet)
+library(curl)
 ```
 
 ###Creating the Corpus without Minhashes
@@ -163,6 +168,73 @@ documents <- fd_matches(basename = fd_matches$treaty_a) %>%
 documents <- data_frame(basename = fd_matches$treaty_a) %>% 
   left_join(parsed_treaties, by ="basename")
 ```
+
+PCA at the paragraph level. 
+```{r}
+#for paragraph level 
+files <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs",                    pattern = "*.txt",
+                  full.names = TRUE)
+
+files <- parsed_treaties
+
+
+
+get_treaty(files)
+
+
+#Modified function
+reader <- function(f) {
+  require(stringr)
+  n <- parsed_treaties$file %>% str_replace("\\.htm", "")
+  doc <- readr::read_file(f)
+  names(doc) <- n
+  doc
+}
+
+it_files <- ifiles(files, reader = reader)
+it_tokens <- itoken(it_files,
+                   tokenizer = tokenizers::tokenize_words)
+
+vocab <- create_vocabulary(it_tokens)
+
+pruned_vocab <- prune_vocabulary(vocab, term_count_min = 10,
+term_count_max = 50000)
+vectorizer <- vocab_vectorizer(pruned_vocab)
+
+dtm <- create_dtm(it_tokens, vectorizer)
+rownames(dtm) <- basename(files) 
+
+dtmsimilarities <- wordVectors::cosineSimilarity(dtm[1:1000, , drop = FALSE], 
+                                              dtm[1:1000, , drop = FALSE])
+dtmsimilarities %>% View
+
+dtm2 <- as.matrix(dtm)
+
+pca <- prcomp(dtm2, scale. = FALSE)
+plot(pca)
+augment(pca) %>% select(1:6) %>% as_tibble() %>% View
+
+augment(pca) %>%
+ggplot(aes(.fittedPC1, .fittedPC2)) + 
+geom_point() 
+
+#(for labels) geom_text_repel(aes(label = .rownames))
+#saveRDS(pca,"pca_indian_treaties_paragraph_level.rds")
+```
+
+
+K-Means 
+Cannot perform K-means because of memory constraints. 
+```{r}
+#km <- kmeans(dtm, centers = 20)
+
+#k_clusters <- tibble(document_id = rownames(dtm),            cluster = km$cluster))
+  
+
+#k_clusters %>% arrange(cluster) %>% View
+```
+
+
 Affinity Propogation Clustering
 ```{r}
 
@@ -188,8 +260,6 @@ m <- sparseMatrix(i = scores_clustering$index.x,
 colnames(m) <- section_names
 rownames(m) <- section_names
 
-
-
 cluster_cache <- "cache/clusters.rds"
 if (!file.exists(cluster_cache)) {
   timing <- system.time(
@@ -201,23 +271,15 @@ if (!file.exists(cluster_cache)) {
                      includeSim = TRUE,
                      )
   )
-  require("RPushbullet")
-  pbPost(title = "Clustering finished",
-         body = paste0("Finished in ", timing[["elapsed"]], "."))
   saveRDS(clu, cluster_cache)
 } else {
   clu <- readRDS(cluster_cache)
 }
 
+clusters <- clu@clusters 
+names(clusters) <- names(clu@exemplars)
+clusters <- lapply(clusters, names)
 
-clu <- apcluster(negDistMat(r = 2), dtm3, details = TRUE)
-ap_clusters <- clu@clusters 
-names(ap_clusters) <- names(clu@exemplars)
-ap_clusters <- lapply(ap_clusters, names)
-ap_clusters <- map_df(names(ap_clusters), function(x) {
-  tibble(exemplar = x, document_id = ap_clusters[[x]])
-})
-ap_clusters %>% left_join(us_items, by = "document_id") %>% View
 ```
 
 
