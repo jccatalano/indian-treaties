@@ -17,10 +17,12 @@ library(tibble)
 prep_word2vec("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-complete","treaty_docs.txt",lowercase=T) 
 
 treaty_model = train_word2vec("treaty_docs.txt",output="treaty_doc_vectors.bin",threads = 6,vectors = 100,window=12)
+
+treaty_model = read.vectors("treaty_doc_vectors.bin")
 ```
 
 ```{r}
-treaty_model %>% nearest_to(treaty_model[["race"]])
+treaty_model %>% nearest_to(treaty_model[["comanche"]])
 
 ```
 
