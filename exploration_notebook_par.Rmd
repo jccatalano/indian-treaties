@@ -2,8 +2,9 @@
 title: "R Notebook"
 output: html_notebook
 ---
+#Text Reuse and Clustering
 
-This notebook will explore text reuse in Indain treaties at the paragraph level. 
+This notebook will explore text reuse in Indain treaties at the paragraph level and clustering at the paragraph and document level.  
 ```{r}
 library(rvest)
 library(magrittr)
@@ -30,7 +31,7 @@ corpus <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_tre
                    pattern = "*.txt",
                    full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
                           progress = FALSE)
-saveRDS()
+#saveRDS()
 ```
 
 ###Creating the Corpus with Minhashes
@@ -110,6 +111,13 @@ similarities %>%
   filter(treaty_a != treaty_b) %>%
   View
 
+paragraph_network <- similarities %>% 
+  mutate(treaty_a = get_treaty(a),
+         treaty_b = get_treaty(b)) %>% 
+      filter(treaty_a != treaty_b)
+  
+
+#matches = similarities > 0.2
 
 matches %>% 
   mutate(treaty_a = get_treaty(a),
@@ -127,21 +135,90 @@ fd_matches =  (matches %>% mutate(treaty_a = get_treaty(a),
   filter(treaty_a != treaty_b)) 
 ```
 
-Making a Network Graph
+##Networks
+
+###Paragraph Level Borrowing
+The following graph displays treaty borrowing at the paragraph level.
+```{r}
+
+sample_graph2 <- graph.data.frame(paragraph_network,directed = FALSE)
+
+plot(sample_graph2, 
+     layout = layout.auto,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0.4,
+    vertex.size = 1,
+      main = "Network Graph of Paragraph Borrowing",
+    edge.width = similarities$score)
+
+```
+###Decomposing the Paragraph Network
+
+The following graph represents the largest cluster from above.
+```{r}
+components <-decompose(sample_graph2, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 3)
+
+components_1_graph <- (components[[1]])
+
+plot(components_1_graph,
+     layout = layout.auto,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0,
+    vertex.size = 1,
+    main = "Network Graph of Largest Paragraph Cluster",
+    edge.width = similarities$score)
+```
+
+###Treaty Borrowing at the Document Level
+
+The following are network graphs of the treaties with the edges representing the number of shared paragraphs. 
 ```{r}
 
 sample_graph <- graph.data.frame(fd_matches,directed = FALSE)
 
 plot(sample_graph, 
      layout = layout.auto,
-    vertex.label.cex = 0.7,
-    margin = -0.6,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0.1,
      vertex.size = 1,
-    edge.width = fd_matches$n >3)
+    main = "Network Graph of Treaty Borrowing",
+    edge.width = fd_matches$n >10)
     
-  
+```
+```{r}
+plot(sample_graph, 
+     layout = layout.auto,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0.1,
+     vertex.size = 1,
+    main = "Network Graph of Treaty Borrowing",
+    edge.width = fd_matches$n >5)
+```
+###Decomposing the Document Network
+```{r}
+components_whole <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 3)
+
+components_whole_1 <- (components_whole[[1]])
+
+plot(components_whole_1, 
+     layout = layout.auto,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n >3)
 
 ```
+
+
+
 ```{r}
 
 #Attempt to bring in Years
@@ -216,15 +293,52 @@ geom_point()
 ```
 
 
-K-Means 
-Cannot perform K-means because of memory constraints. 
+##K-Means at the Document Level
+ 
 ```{r}
-#km <- kmeans(dtm, centers = 20)
 
-#k_clusters <- tibble(document_id = rownames(dtm),            cluster = km$cluster))
-  
+treatycorpus <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-complete",                    pattern = "*.txt",
+                   full.names = TRUE)
+ 
+reader <- function(f) {
+  require(stringr)
+  n <- basename(f) %>% str_replace("\\.txt", "")
+  doc <- readr::read_file(f)
+  names(doc) <- n
+  doc
+}
 
-#k_clusters %>% arrange(cluster) %>% View
+it_files2 <- ifiles(treatycorpus, reader = reader)
+it_tokens2 <- itoken(it_files2,
+                   tokenizer = tokenizers::tokenize_words)
+
+vocab2 <- create_vocabulary(it_tokens2)
+
+pruned_vocab2 <- prune_vocabulary(vocab2, term_count_min = 10,
+term_count_max = 50000)
+vectorizer2 <- vocab_vectorizer(pruned_vocab2)
+
+dtm2 <- create_dtm(it_tokens2, vectorizer2)
+rownames(dtm2) <- basename(treatycorpus)
+
+parsed_treaties <- readRDS("parsed_treaties.rds")
+addyear <- basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt")
+
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt"))
+
+km <- kmeans(dtm2, centers = 10)
+
+k_clusters <- tibble(document_id = rownames(dtm2),
+                     cluster = km$cluster) %>% 
+  left_join(parsed_treaties, by = "document_id")
+
+k_clusters %>% arrange(cluster) %>% View
+
+plot(km$cluster)
+
+ggplot(k_clusters, aes(388, 388)) + geom_point()
 ```
 
 
@@ -254,11 +368,12 @@ colnames(m) <- section_names
 rownames(m) <- section_names
 
 
-cluster_cache <- "C:/Users/Joshua/Documents/rdata/indian_treaties//clusters.rds"
+
+cluster_cache <- "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters.rds"
 if (!file.exists(cluster_cache)) {
   timing <- system.time(
     clu <- apcluster(s = m,
-                     maxits = 1e3, convits = 100,
+                     maxits = 100e3, convits = 10e3,
                      q = 0,
                      lam = 0.975,
                      seed = 42325, 
@@ -307,6 +422,8 @@ clusters_df <- clusters %>%
 
 
 ```{r}
+
+#Check if Needed
 join_threshold <- 0.15
 exemplars_scores <- exemplars_scores %>% 
   filter(score >= 0.15)
@@ -332,5 +449,16 @@ hist(exemplars_scores$score)
 
 
 
+```{r}
+g <- make_ring(10) %>%
+  set_vertex_attr("name", value = LETTERS[1:10])
+g
+V(g)
+
+g2 <- delete_vertices(g, c(1,5)) %>%
+  delete_vertices("B")
+g2
+V(g2)
+```
 
 
