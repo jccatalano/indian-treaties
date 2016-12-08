@@ -2,9 +2,9 @@
 title: "R Notebook"
 output: html_notebook
 ---
-#Text Reuse and Clustering
+#Text Reuse, Clustering
 
-This notebook will explore text reuse in Indain treaties at the paragraph level and clustering at the paragraph and document level.  
+This notebook will explore text reuse in Indain treaties at the paragraph level and clustering at the paragraph and document level.First, some general information regarding Indian treaties is explored. 
 ```{r}
 library(rvest)
 library(magrittr)
@@ -24,6 +24,55 @@ library(text2vec)
 library(broom)
 library(apcluster)
 ```
+###General Analysis
+
+
+```{r}
+#dtm2 is generated below.
+
+parsed_treaties <- readRDS("parsed_treaties.rds")
+addyear <- basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt")
+
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt"))
+
+#dtm2 <- dtm2 %>%
+#  mutate(document_id = rownames(dtm2))
+         
+  
+dtm_to_df <- function(x, words) {
+  stopifnot(is.character(words))
+  out <- as_tibble(as.data.frame(as.matrix(x[, words])))
+  colnames(out) <- words
+  ids <- str_replace_all(rownames(x), "\\.txt", "")
+  ids <- str_split_fixed(ids, "-", n = 2)
+  out %>% 
+    mutate(document_id = ids[ , 1, drop = TRUE])
+          }
+  
+words_of_interest <- c("horse", "indian", "death", "buffalo")
+
+counts <- dtm_to_df(dtm2, words_of_interest) %>% 
+  gather(word, count, -document_id) %>% 
+  filter(count > 0)
+
+item_years <- parsed_treaties %>% 
+  select(document_id, year)
+
+counts %>% 
+  group_by(document_id, word) %>% 
+  summarize(count = sum(count)) %>% 
+  left_join(parsed_treaties, by = "document_id") %>% 
+  group_by(year, word) %>% 
+  summarize(count = sum(count)) %>% 
+  ggplot(aes(x = year, y = count, color = word)) +
+  geom_point() +
+  geom_smooth(span = 0.1, se = FALSE) +
+  labs(title = "A Title") + 
+  xlim(1760,1890)
+```
+
 
 ###Creating the Corpus without Minhashes
 ```{r createcorpus, cache=TRUE}
@@ -204,20 +253,91 @@ plot(sample_graph,
 components_whole <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
   min.vertices = 3)
 
+plot(components_whole[[7]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Title",
+    edge.width = fd_matches$n >3)
+
+```
+The largest cluster:
+```{r}
 components_whole_1 <- (components_whole[[1]])
 
 plot(components_whole_1, 
      layout = layout.auto,
-    #vertex.label.cex = 0.7,
-    vertex.label = NA,
-    margin = -0,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0.2,
      vertex.size = 1,
     main = "Network Graph of Largest Treaty Cluster",
     edge.width = fd_matches$n >3)
 
 ```
+Attempt to split the graph apart futher by removing vertices and the decomposing.
+
+```{r}
+broken_graph <- sample_graph
+
+removed_vertices <- c("cre0155", "com0600", "cre0214", "wya0145", "iow0208", "pot0168", "mia0531", "sau0207",  "qua0160")
+removed_edges <- c("osa0095|osa0167")
+
+broken_graph <- delete_vertices(broken_graph, removed_vertices)                 #
+
+#delete_edges(broken_graph, removed_edges) 
+ 
+plot(broken_graph,
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0.7,
+    vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n >3)
+
+decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 4)
+
+plot(decomposed_broken_graph[[1]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0.3,
+     vertex.size = 1,
+    main = "Title",
+    edge.width = fd_matches$n >2)
+
+```
 
 
+Another decomposition with a higher number of minimum vertices.
+```{r}
+components_whole2 <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 4)
+
+plot(components_whole2[[8]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n >2)
+```
+The Sioux Cluster
+```{r}
+plot(components_whole2[[2]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Sioux Bands Cluster, 1865",
+    edge.width = fd_matches$n >3)
+```
 
 ```{r}
 
@@ -451,14 +571,13 @@ hist(exemplars_scores$score)
 
 ```{r}
 g <- make_ring(10) %>%
-  set_vertex_attr("name", value = LETTERS[1:10])
+  delete_edges(seq(1, 9, by = 2))
 g
-V(g)
 
-g2 <- delete_vertices(g, c(1,5)) %>%
-  delete_vertices("B")
-g2
-V(g2)
+plot(g)
+g <- make_ring(10) %>%
+  delete_edges("8|9")
+plot(g)
 ```
 
 
