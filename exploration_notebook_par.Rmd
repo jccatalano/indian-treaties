@@ -137,7 +137,8 @@ hist(similarities$score, breaks = 100)
 ```
 Filtering out the candidates that turned out not to be matches. 
 ```{r}
-matches <- filter(similarities, score> .2)
+
+similarities <- filter(similarities, score> .2)
 hist(matches$score, breaks = 100)
 ``` 
 
@@ -180,14 +181,18 @@ similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
 similarities2 <- similarities2 %>%
                 mutate(document_id_b = document_id_b.y)
 
+similarities2 <- subset(similarities2, select = -c(4))
+
 similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_b")
 
 similarities2 <- similarities2 %>% 
                 mutate(treaty_b_year = year)
 
-similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8, 12))
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
 
-similarities2 <- similarities2[-c(1, 2, 3), ]
+similarities2 <- na.omit(similarities2)
+
+
 ```
 
 
@@ -199,7 +204,7 @@ paragraph_network <- similarities %>%
       filter(treaty_a != treaty_b)
   
 
-#matches = similarities > 0.2
+fd_matches <- similarities2
 
 matches %>% 
   mutate(treaty_a = get_treaty(a),
@@ -229,7 +234,7 @@ plot(sample_graph2,
      layout = layout.auto,
     #vertex.label.cex = 0.7,
     vertex.label = NA,
-    margin = -0.4,
+    margin = -0,
     vertex.size = 1,
       main = "Network Graph of Paragraph Borrowing",
     edge.width = similarities$score)
@@ -265,11 +270,17 @@ plot(sample_graph,
      layout = layout.auto,
     #vertex.label.cex = 0.7,
     vertex.label = NA,
-    margin = -0.1,
+    margin = -0,
      vertex.size = 1,
     main = "Network Graph of Treaty Borrowing",
-    edge.width = fd_matches$n >10)
+    edge.width = fd_matches$n)
     
+#Attempt to seperate by decade
+#seventeen_eighties <- filter(fd_matches, treaty_a_year == c(1780:1789))
+                       
+                       #| treaty_b_year == c(1780:1789))
+
+
 ```
 ```{r}
 plot(sample_graph, 
@@ -284,12 +295,12 @@ plot(sample_graph,
 ###Decomposing the Document Network
 ```{r}
 components_whole <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
-  min.vertices = 3)
+  min.vertices = 5)
 
-plot(components_whole[[7]],
+plot(components_whole[[1]],
      layout = layout.auto,
-    vertex.label.cex = 0.6,
-    #vertex.label = NA,
+    #vertex.label.cex = 0.6,
+    vertex.label = NA,
     margin = -0,
      vertex.size = 1,
     main = "Title",
@@ -302,12 +313,12 @@ components_whole_1 <- (components_whole[[1]])
 
 plot(components_whole_1, 
      layout = layout.auto,
-    vertex.label.cex = 0.6,
-    #vertex.label = NA,
+    #vertex.label.cex = 0.6,
+    vertex.label = NA,
     margin = -0.2,
      vertex.size = 1,
     main = "Network Graph of Largest Treaty Cluster",
-    edge.width = fd_matches$n >3)
+    edge.width = fd_matches$n)
 
 ```
 Attempt to split the graph apart futher by removing vertices and the decomposing.
@@ -316,7 +327,7 @@ Attempt to split the graph apart futher by removing vertices and the decomposing
 broken_graph <- sample_graph
 
 removed_vertices <- c("cre0155", "com0600", "cre0214", "wya0145", "iow0208", "pot0168", "mia0531", "sau0207",  "qua0160")
-removed_edges <- c("osa0095|osa0167")
+#removed_edges <- c("osa0095|osa0167")
 
 broken_graph <- delete_vertices(broken_graph, removed_vertices)                 #
 
@@ -326,7 +337,7 @@ plot(broken_graph,
      layout = layout.auto,
     vertex.label.cex = 0.6,
     #vertex.label = NA,
-    margin = -0.7,
+    margin = -0.1,
     vertex.size = 1,
     main = "Network Graph of Largest Treaty Cluster",
     edge.width = fd_matches$n >3)
@@ -372,32 +383,6 @@ plot(components_whole2[[2]],
     edge.width = fd_matches$n >3)
 ```
 
-```{r}
-
-#Attempt to bring in Years
-document_id <- basename(parsed_treaties$file) %>% str_replace("\\.htm", "")
-
-documents <- data_frame(document_id = fd_matches$treaty_a) %>% 
-  left_join(parsed_treaties, by ="document_id")
-
-
-documents <- data_frame(document_id = rownames(dtm)) %>% 
-  left_join(us_subjects_moml, by = "document_id")  
-  
-
-
-
-filenames <- str_c("treaty-paragraphs/", doc_id, ".txt")
-
-  
-documents <- fd_matches(basename = fd_matches$treaty_a) %>% 
-  leftjoin (parsed_treaties, by ="basename")
-```
-
-```{r}
-documents <- data_frame(basename = fd_matches$treaty_a) %>% 
-  left_join(parsed_treaties, by ="basename")
-```
 
 ##PCA at the paragraph level. 
 ```{r}
@@ -498,7 +483,7 @@ ggplot(k_clusters, aes(388, 388)) + geom_point()
 Affinity Propogation Clustering
 ```{r}
 
-scores_clustering <- matches
+scores_clustering <- similarities
 
 section_names <- lsh_subset(scores_clustering)
 
