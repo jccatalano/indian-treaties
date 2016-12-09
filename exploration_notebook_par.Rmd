@@ -23,6 +23,7 @@ library(tokenizers)
 library(text2vec)
 library(broom)
 library(apcluster)
+library(readr)
 ```
 ###General Analysis
 
@@ -140,25 +141,57 @@ matches <- filter(similarities, score> .2)
 hist(matches$score, breaks = 100)
 ``` 
 
-```{r}
-
-```
-
 
 ```{r}
 get_treaty <- function(x) {
   str_sub(x, 1, 7)
 }
-similarities$a %>% sample(10) %>% get_treaty()
+
+similarities2 <- similarities %>% 
+        mutate(treaty_a = get_treaty(a),
+        treaty_b = get_treaty(b)) %>% 
+        count(treaty_a, treaty_b) %>% 
+        arrange(desc(n)) %>% 
+        filter(treaty_a != treaty_b) 
+        
+
+#Add years to similarities
+parsed_treaties <- readRDS("parsed_treaties.rds")
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_a = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_b = basename(parsed_treaties$file) %>% str_replace("\\.htm", ""))
+
+similarities2 <- similarities2 %>%
+              mutate(document_id_a = treaty_a) %>%
+              mutate(document_id_b = treaty_b) 
+              
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_a")
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_a_year = year)
 
 
-similarities %>% 
-  mutate(treaty_a = get_treaty(a),
-         treaty_b = get_treaty(b)) %>% 
-  count(treaty_a, treaty_b) %>% 
-  arrange(desc(n)) %>% 
-  filter(treaty_a != treaty_b) %>%
-  View
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>%
+                mutate(document_id_b = document_id_b.y)
+
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_b")
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_b_year = year)
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8, 12))
+
+similarities2 <- similarities2[-c(1, 2, 3), ]
+```
+
+
+```{r}
 
 paragraph_network <- similarities %>% 
   mutate(treaty_a = get_treaty(a),
@@ -301,7 +334,7 @@ plot(broken_graph,
 decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
   min.vertices = 4)
 
-plot(decomposed_broken_graph[[1]],
+plot(decomposed_broken_graph[[3]],
      layout = layout.auto,
     vertex.label.cex = 0.6,
     #vertex.label = NA,
@@ -520,6 +553,11 @@ exemplars_scores <- exemplars_corpus %>%
 boxplot(exemplars_scores$score)
 hist(exemplars_scores$score)
 
+join_threshold <- 0.15
+exemplars_scores <- exemplars_scores %>% 
+  filter(score >= 0.19)
+
+hist(exemplars_scores$score)
 ```
 
 Creating a Data Frame
@@ -536,6 +574,24 @@ clusters_df <- clusters %>%
   mutate(n = n()) %>% 
   ungroup() %>% 
   arrange(desc(n))
+
+clusters_df
+
+dir.create("C:/Users/Joshua/Documents/rdata/indian_treaties/clusters")
+
+write_csv(clusters_df, "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters/clusters.csv")
+
+extract_code_names <- function(section_names) {
+  splits <- str_split(section_names, "-")
+  vapply(splits, `[`, character(1), 1)
+}
+
+exemplars_summary <- clusters_df$exemplar %>% 
+  extract_code_names() %>% 
+  table() %>% 
+  as.data.frame() %>% as_data_frame() %>% 
+  rename(., code = `.`) %>% 
+  arrange(desc(Freq))
 ```
 
 
@@ -568,6 +624,21 @@ hist(exemplars_scores$score)
 ```
 
 
+```{r}
+
+cluster181 <- c("ari0237-00012", "bel0239-00011", "che0232-00012","cro0244-00010","hun0235-00010", "mak0260-00010", "man0242-00012","ogl0230-00011", "oto0256-00010", "paw0258-00011", "pon0225-00010", "rog0603-00012", "sio0227-00014", "uta0856-00011")
+
+
+cluster181 <- get_treaty(cluster181)
+
+clusters_df_with_id <- clusters_df %>%
+                      mutate(document_id = clusters_df$doc %>% get_treaty) %>%
+                      left_join(parsed_treaties,by = document_id)
+
+df_clusters_years <- left_join(parsed_treaties, clusters_df_with_id,  document_id = parsed_treaties) 
+
+
+```
 
 ```{r}
 g <- make_ring(10) %>%
