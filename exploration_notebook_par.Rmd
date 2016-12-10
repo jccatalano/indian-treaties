@@ -350,14 +350,14 @@ V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange")
 V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
 
 
-colors <- c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")
-
 plot(G, 
      layout = layout.auto,
-     vertex.label.cex = 0.7,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
      vertex.size = 4, 
      margin = -0,
-     vertex.label = NA, 
+     #vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
      edge.width = fd_matches$n >2)
 
@@ -373,6 +373,8 @@ egend(2000,9.5, # places a legend at the appropriate place c(“Health”,”Def
 lty=c(1,1), # gives the legend appropriate symbols (lines)
 
 lwd=c(2.5,2.5),col=c(“blue”,”red”)) # gives the legend lines the correct color and width
+
+colors <- c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")
 ```
 
 
@@ -415,6 +417,8 @@ plot(components_whole_1,
     main = "Network Graph of Largest Treaty Cluster",
     edge.width = fd_matches$n)
 
+
+
 ```
 Attempt to split the graph apart futher by removing vertices and the decomposing.
 
@@ -449,6 +453,20 @@ plot(decomposed_broken_graph[[2]],
     main = "Title",
     edge.width = fd_matches$n >2)
 
+G <- decomposed_broken_graph[[3]]
+
+V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+
+plot(G, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 4, 
+     margin = -0,
+     #vertex.label = NA, 
+     main = "Network Graph of Treaty Borrowing",
+     edge.width = fd_matches$n >2)
 ```
 
 
