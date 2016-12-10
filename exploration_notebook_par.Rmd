@@ -195,9 +195,7 @@ similarities2 <- na.omit(similarities2)
 
 ```
 
-
 ```{r}
-
 paragraph_network <- similarities %>% 
   mutate(treaty_a = get_treaty(a),
          treaty_b = get_treaty(b)) %>% 
@@ -205,6 +203,11 @@ paragraph_network <- similarities %>%
   
 
 fd_matches <- similarities2
+```
+
+
+```{#r}
+#Old Code
 
 matches %>% 
   mutate(treaty_a = get_treaty(a),
@@ -234,7 +237,7 @@ plot(sample_graph2,
      layout = layout.auto,
     #vertex.label.cex = 0.7,
     vertex.label = NA,
-    margin = -0,
+    margin = -0.6,
     vertex.size = 1,
       main = "Network Graph of Paragraph Borrowing",
     edge.width = similarities$score)
@@ -274,6 +277,7 @@ plot(sample_graph,
      vertex.size = 1,
     main = "Network Graph of Treaty Borrowing",
     edge.width = fd_matches$n)
+    
     
 #Attempt to seperate by decade
 #seventeen_eighties <- filter(fd_matches, treaty_a_year == c(1780:1789))
@@ -345,12 +349,13 @@ plot(broken_graph,
 decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
   min.vertices = 4)
 
-plot(decomposed_broken_graph[[3]],
+plot(decomposed_broken_graph[[2]],
      layout = layout.auto,
     vertex.label.cex = 0.6,
     #vertex.label = NA,
     margin = -0.3,
      vertex.size = 1,
+    "mak0260"
     main = "Title",
     edge.width = fd_matches$n >2)
 
@@ -615,6 +620,37 @@ cluster181 <- c("ari0237-00012", "bel0239-00011", "che0232-00012","cro0244-00010
 
 
 cluster181 <- get_treaty(cluster181)
+
+
+cluster_df_years <- clusters_df %>%
+              mutate(document_id_a = get_treaty(exemplar)) %>%
+              mutate(document_id_b = get_treaty(doc)) 
+              
+cluster_df_years <- left_join(parsed_treaties, cluster_df_years, by = "document_id_a")
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4))
+
+cluster_df_years <- cluster_df_years %>% 
+                mutate(exemplar_year = year)
+
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4))
+
+cluster_df_years <- cluster_df_years %>%
+                mutate(document_id_b = document_id_b.y)
+
+cluster_df_years <- subset(cluster_df_years, select = -c(5))
+
+cluster_df_years <- left_join(parsed_treaties, cluster_df_years, by = "document_id_b")
+
+cluster_df_years <- cluster_df_years %>% 
+                mutate(doc_year = year)
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
+
+cluster_df_years <- na.omit(cluster_df_years)
+
+
 
 clusters_df_with_id <- clusters_df %>%
                       mutate(document_id = clusters_df$doc %>% get_treaty) %>%
