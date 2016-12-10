@@ -192,6 +192,9 @@ similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
 
 similarities2 <- na.omit(similarities2)
 
+similarities2 <- similarities2 %>%
+                    mutate(borrow_span = (treaty_a_year - treaty_b_year))
+
 
 ```
 
@@ -266,19 +269,71 @@ plot(components_1_graph,
 
 The following are network graphs of the treaties with the edges representing the number of shared paragraphs. 
 ```{r}
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
 
-sample_graph <- graph.data.frame(fd_matches,directed = FALSE)
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id )
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_att_graph <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
+
+sample_graph <- node_att_graph
+  
+  #Old way to create igraph = graph.data.frame(fd_matches,directed = FALSE)
 
 plot(sample_graph, 
      layout = layout.auto,
     #vertex.label.cex = 0.7,
     vertex.label = NA,
     margin = -0,
-     vertex.size = 1,
+     vertex.size = 3,
     main = "Network Graph of Treaty Borrowing",
-    edge.width = fd_matches$n)
+    edge.width = fd_matches$n >2)
     
-    
+```
+
+
+```{#r}
+
+#Trial to recreate igraph with node attributes
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+
+node_att_graph <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
+
+
+plot(node_att_graph)
+
+G <- node_att_graph
+
+V(G)$color <- ifelse(V(G)$year =="1865", "lightblue", "orange")
+
+plot(G, 
+     layout = layout.auto, 
+     vertex.size = 4, 
+     vertex.label = NA, 
+     edge.width = fd_matches$n >2)    
+
+colrs <- c("red", "orange")
+V(G)$color <- colrs[V(G)$treaty_a_year == "1865"]
+
 #Attempt to seperate by decade
 #seventeen_eighties <- filter(fd_matches, treaty_a_year == c(1780:1789))
                        
@@ -286,6 +341,42 @@ plot(sample_graph,
 
 
 ```
+
+```{r}
+G <- node_att_graph
+
+V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
+
+V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+
+
+colors <- c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")
+
+plot(G, 
+     layout = layout.auto,
+     vertex.label.cex = 0.7,
+     vertex.size = 4, 
+     margin = -0,
+     vertex.label = NA, 
+     main = "Network Graph of Treaty Borrowing",
+     edge.width = fd_matches$n >2)
+
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21,
+       col=c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")) 
+
+t.bg= c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan"),
+
+legend(x=-1.5, y=-1.1, c("Newspaper","Television", "Online News"), pch=21,
+       col="#777777", pt.bg=colrs, pt.cex=2, cex=.8, bty="n", ncol=1)
+egend(2000,9.5, # places a legend at the appropriate place c(“Health”,”Defense”), # puts text in the legend
+
+lty=c(1,1), # gives the legend appropriate symbols (lines)
+
+lwd=c(2.5,2.5),col=c(“blue”,”red”)) # gives the legend lines the correct color and width
+```
+
+
+
 ```{r}
 plot(sample_graph, 
      layout = layout.auto,
@@ -355,7 +446,6 @@ plot(decomposed_broken_graph[[2]],
     #vertex.label = NA,
     margin = -0.3,
      vertex.size = 1,
-    "mak0260"
     main = "Title",
     edge.width = fd_matches$n >2)
 
@@ -650,13 +740,17 @@ cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4, 5, 6, 7, 8)
 
 cluster_df_years <- na.omit(cluster_df_years)
 
+cluster_df_years <- cluster_df_years %>%
+                    mutate(borrow_span = (doc_year - exemplar_year))
 
-
-clusters_df_with_id <- clusters_df %>%
-                      mutate(document_id = clusters_df$doc %>% get_treaty) %>%
-                      left_join(parsed_treaties,by = document_id)
-
-df_clusters_years <- left_join(parsed_treaties, clusters_df_with_id,  document_id = parsed_treaties) 
+hist(abs(cluster_df_years$borrow_span),
+main="Histogram of Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower", 
+     border="blue", 
+     col="green",
+     xlim=c(0,60),
+     las=1, 
+     breaks=50)
 
 
 ```
