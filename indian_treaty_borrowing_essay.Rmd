@@ -1,0 +1,34 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Digitally Analyzing the Uneven Ground: Language Borrowing in Indian Treaties
+How smooth must be the language of the whites, when they can make right look like wrong, and wrong like right.
+											--Blackhawk
+	Word choice and the functioning of language itself has become an important sub-field within indigenous history. As Patricia Limerick has noted, “the process of invasion, conquest, and colonization was the kind of activity that provoked a shiftiness in verbal behavior.”  As Blackhawk’s quote demonstrates, modern scholars were not the first individuals to recognize words as tools of settler colonialism. Jean M. O’Brien’s Firsting and Lasting: Writing Indians Out of Existence in New England and James Joseph Buss’ Winning the West with Words: Language and Conquest in the Lower Great Lakes demonstrate how non-indigenous authors, politicians, and historians used language to exterminate Indians in the collective American consciousness even if they failed to do so in reality. Still, the written words that most impact the lives of Native Americans are contained within treaties. 
+	Numerous scholars including David Wilkins, Vine Deloria, Jr., and K. Tsianina Lomawaima have examined the importance of treaties to federal Indian policy. Other scholars such as Chantal Norrgard and Jean Dennison have focused on the impact of specific treaties on particular nations. These analyses trace the implications of words to the critical issues of tribal sovereignty and fishing, hunting, and gathering rights. Despite the flourishing of this New Tribal History, the examination of treaties as a single unique corpus has yet to be undertaken. This essay explores the content and connections between treaties using the methods of digital history. It argues that treaty authors frequently borrowed both content and language from previous documents but only rarely did this borrowing occur over long periods of time or across geographic regions. Most treaties borrowed from their immediate temporal predecessors and geographic neighbors.
+1. Research questions and methodology
+	This research project was framed around several specific questions: 
+•	To what extent did treaties adhere to a standard structure or form?
+•	Were there specific treaties that subsequent authors and negotiators modeled their agreements after in terms of language? 
+•	If borrowing did occur, what portions of previous treaties did authors or negotiators borrow and why?
+•	How did time and geography influence the content and language of treaties? 
+As with any historical research project, the methods and theoretical frameworks were chosen for their ability to answer and/or explore these aforementioned research questions. Central to answering these questions is the method of digitally detecting text reuse or borrowing. In many ways this approach works similarly to plagiarism detection software in that a computer program scans a series of documents and calculates the similarity between them. In this case, the computer is not identifying plagiarism but language borrowing. This is not the first study to employ such an approach. Ryan Cordell successfully used the method of digitally detecting text reuse to trace the reprinting and circulation of articles by a network of 19th century newspapers. Kellen Funk and Lincoln Mullen also used this approach to trace the state to state borrowing of legal code within American law. It is from this latter study that this essay draws most of its methodology.
+To acquire the text of the treaties in digital format, they were scraped from Oklahoma State’s Kappler Project website, where they host the 388 digital transcriptions of the treaties contained in Charles J. Kappler’s Indian Affairs: Laws and Treaties. This approach negated the issue that many digital history projects have concerning the quality of Optical Character Recognition (turning scanned images into digital text) because the online text was manually transcribed. After acquiring the treaties, they were then massaged into a format conducive to answering the research questions and compatible with R, the programming software that was used to analyze the texts. 
+In order to compute similarity scores that went beyond a document to document comparison, the body of the treaties were split apart and turned into their own separate files. This approach allowed for a paragraph to paragraph computation of similarity and allowed for the documents to be visually displayed in a network graph both at the document and paragraph level.
+Using Lincoln Mullen’s "textreuse: Detect Text Reuse and Document Similarity" package for R, the similarity of the documents was computed and the results were turned into the visualizations that appear in this essay. In addition to the network graphs, the documents were clustered using affinity propagation clustering in order to identify clusters of closely related texts. This process helped detect groups of texts that borrowed from the same “exemplar” document. The findings, questions, and anomalies raised by this this approach will be addressed later in this essay.
+2. A macro view of the Uneven Ground
+
+
+3. A micro view of selected examples
+
+
+
+```{r}
+plot(cars)
+```
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Ctrl+Alt+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Ctrl+Shift+K* to preview the HTML file).
