@@ -359,7 +359,7 @@ plot(G,
      margin = -0,
      #vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
-     edge.width = fd_matches$n >2)
+     edge.width = fd_matches$n >1)
 
 legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21,
        col=c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")) 
@@ -762,15 +762,29 @@ cluster_df_years <- cluster_df_years %>%
                     mutate(borrow_span = (doc_year - exemplar_year))
 
 hist(abs(cluster_df_years$borrow_span),
-main="Histogram of Borrowing Across Time", 
-     xlab="Difference in time between exemplar and borrower", 
-     border="blue", 
+main="Histogram of Paragraph Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower in years", 
+     border="black", 
      col="green",
      xlim=c(0,60),
-     las=1, 
+     ylim= c(0,1500),
+     las=1,
+labels =  TRUE,
+     breaks= 50)
+
+plot(h$mids, h$counts, log="y", type='h', lwd=10, lend=2, col= "blue")
+
+```
+```{r}
+hist(abs(cluster_df_years$borrow_span),
+main="Histogram of Paragraph Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower in years\n *The first column (1-2 years) = 1113", 
+     border="black", 
+     col="green",
+     xlim=c(0,60),
+     ylim= c(0,100),
+     las=1,
      breaks=50)
-
-
 ```
 
 ```{r}
