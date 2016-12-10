@@ -3,11 +3,6 @@ title: "R Notebook"
 output: html_notebook
 ---
 
----
-title: "R Notebook"
-output: html_notebook
----
-
 This notebook will explore text reuse in Indain treaties at the paragraph level. 
 ```{r}
 library(rvest)
