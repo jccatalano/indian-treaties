@@ -132,14 +132,7 @@ Filtering out the candidates that turned out not to be matches.
 similarities <-lsh_compare(candidates, corpus2, jaccard_similarity)
 
 similarities <- filter(similarities, score> .2)
-```
 
-Histogram of similarities
-```{r} 
-hist(similarities$score, breaks = 100) 
-```
-
-```{r}
 get_treaty <- function(x) {
   str_sub(x, 1, 7)
 }
@@ -191,7 +184,19 @@ similarities2 <- na.omit(similarities2)
 similarities2 <- similarities2 %>%
                     mutate(borrow_span = (treaty_a_year - treaty_b_year))
 
+#saveRDS(similarities, "similarities.rds")
+#saveRDS(similarities2, "similarities2.rds")
 
+# similarities <- readRDS("similarities.rds")
+# similarities2 <- readRDS("similarities2.rds")
+
+fd_matches <- similarities2
+
+```
+
+Histogram of similarities
+```{r} 
+hist(similarities$score, breaks = 100) 
 ```
 
 ```{r}
@@ -199,9 +204,6 @@ paragraph_network <- similarities %>%
   mutate(treaty_a = get_treaty(a),
          treaty_b = get_treaty(b)) %>% 
       filter(treaty_a != treaty_b)
-  
-
-fd_matches <- similarities2
 ```
 
 
@@ -282,9 +284,15 @@ node_df <- node_df %>%
 
 node_att_graph <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
 
+#saveRDS(node_att_graph, "node_att_graph.rds")
+#node_att_graph <- readRDS("node_att_graph.rds")
+
 sample_graph <- node_att_graph
-  
-  #Old way to create igraph = graph.data.frame(fd_matches,directed = FALSE)
+
+#saveRDS(sample_graph, "sample_graph.rds")
+#sample_graph <- readRDS("sample_graph.rds")  
+
+#Old way to create igraph = graph.data.frame(fd_matches,directed = FALSE)
 
 plot(sample_graph, 
      layout = layout.auto,
@@ -444,12 +452,127 @@ plot(decomposed_broken_graph[[2]],
      layout = layout.auto,
     vertex.label.cex = 0.6,
     #vertex.label = NA,
-    margin = -0.3,
+    margin = -0,
      vertex.size = 1,
     main = "Title",
     edge.width = fd_matches$n >2)
+```
+```{r}
 
+sioux_1865 <- decomposed_broken_graph[[4]]
+
+plot(sioux_1865,
+     layout = layout.auto,
+    vertex.label.cex = .9,
+    vertex.label.dist = 0.9,
+    vertex.label.degree = -pi/2,
+    #vertex.label = NA,
+    margin = .1,
+     vertex.size = 20,
+    main = "Treaties with Sioux Bands, 1865",
+    edge.width = fd_matches$n >2)
+#need legend
+```
+
+```{r}
+similarities3 <- similarities2
+
+get_treaty2 <- function(x) {
+  str_sub(x, 1, 3)
+}
+
+similarities3 <- similarities3 %>% 
+        mutate(treaty_a = get_treaty(a),
+        treaty_b = get_treaty(b)) %>% 
+        count(treaty_a, treaty_b) %>% 
+        arrange(desc(n)) %>% 
+        filter(treaty_a != treaty_b) 
+
+similarities3 <- similarities3 %>%
+                mutate(nation_a = get_treaty2(treaty_a),
+                nation_b =get_treaty2(treaty_b))
+
+get_nation <- filter(similarities3, nation_a %in% "del",
+              nation_b %in% "del")
+
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id)
+                 
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_df <- node_df %>% 
+  mutate(nation = document_id %>% str_sub(1, 3))
+
+nation_node <- filter(nation_node, nation %in% "del")
+
+nation_graph<- graph_from_data_frame(d = get_nation, vertices = nation_node, directed = FALSE)
+
+#nation_graph = graph.data.frame(get_nation, directed = FALSE)
+
+plot(nation_graph,
+    layout = layout.auto,
+    vertex.label.cex = .9,
+    vertex.label.dist = 0.9,
+    vertex.label.degree = -pi/2,
+    #vertex.label = NA,
+    margin = .1,
+     vertex.size = 20,
+    main = "Delaware Treaties",
+    edge.width = fd_matches$n >2)
+
+
+
+nation_graph
+
+V(nation_graph)$color <- ifelse(V(nation_graph)$decade == "177", "blue", ifelse(V(nation_graph)$decade == "178","cyan", ifelse(V(nation_graph)$decade == "179","blueviolet", ifelse(V(nation_graph)$decade == "180","darkgreen", ifelse(V(nation_graph)$decade == "181","green", ifelse(V(nation_graph)$decade == "182","orange", ifelse(V(nation_graph)$decade == "183","gold", ifelse(V(nation_graph)$decade == "184","red", ifelse(V(nation_graph)$decade == "185","hotpink", ifelse(V(nation_graph)$decade == "186","yellow", ifelse(V(nation_graph)$decade == "187","black", ifelse(V(nation_graph)$decade == "188","tan", "white" ))))))))))))
+
+plot(nation_graph, 
+     layout = layout.auto,
+     vertex.label.cex = 1.3,
+     vertex.label.dist =.9,
+     vertex.label.degree = -pi/2,
+     vertex.size = 17, 
+     margin = 0.3,
+     #vertex.label = NA, 
+     main = "Network Graph of Delaware Treaty Borrowing",
+     edge.width = fd_matches$n >0)
+# Need Legend
+```
+
+
+```{r}
+com_0554_graph <- decomposed_broken_graph[[3]]
+
+
+V(com_0554_graph)$color <- ifelse(V(com_0554_graph)$decade == "177", "blue", ifelse(V(com_0554_graph)$decade == "178","cyan", ifelse(V(com_0554_graph)$decade == "179","blueviolet", ifelse(V(com_0554_graph)$decade == "180","darkgreen", ifelse(V(com_0554_graph)$decade == "181","green", ifelse(V(com_0554_graph)$decade == "182","orange", ifelse(V(com_0554_graph)$decade == "183","gold", ifelse(V(com_0554_graph)$decade == "184","red", ifelse(V(com_0554_graph)$decade == "185","hotpink", ifelse(V(com_0554_graph)$decade == "186","yellow", ifelse(V(com_0554_graph)$decade == "187","black", ifelse(V(com_0554_graph)$decade == "188","tan", "white" ))))))))))))
+
+plot(com_0554_graph, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 7, 
+     margin = -0,
+     vertex.label = NA, 
+     main = "Network Graph of Treaty Borrowing",
+     edge.width = fd_matches$n >2)
+```
+
+```{r}
 G2 <- decomposed_broken_graph[[3]]
+
 
 V(G2)$color <- ifelse(V(G2)$decade == "177", "blue", ifelse(V(G2)$decade == "178","cyan", ifelse(V(G2)$decade == "179","blueviolet", ifelse(V(G2)$decade == "180","darkgreen", ifelse(V(G2)$decade == "181","green", ifelse(V(G2)$decade == "182","orange", ifelse(V(G2)$decade == "183","gold", ifelse(V(G2)$decade == "184","red", ifelse(V(G2)$decade == "185","hotpink", ifelse(V(G2)$decade == "186","yellow", ifelse(V(G2)$decade == "187","black", ifelse(V(G2)$decade == "188","tan", "white" ))))))))))))
 
@@ -458,7 +581,7 @@ plot(G2,
      vertex.label.cex = 0.6,
      vertex.label.dist =0,
      vertex.label.degree = pi,
-     vertex.size = 4, 
+     vertex.size = 9, 
      margin = -0,
      #vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
@@ -644,14 +767,14 @@ exemplars_scores <- exemplars_corpus %>%
   lsh_compare(exemplars_corpus, jaccard_similarity) %>% 
   arrange(desc(score))
 
-boxplot(exemplars_scores$score)
-hist(exemplars_scores$score)
+#boxplot(exemplars_scores$score)
+#hist(exemplars_scores$score)
 
 join_threshold <- 0.15
 exemplars_scores <- exemplars_scores %>% 
   filter(score >= 0.19)
 
-hist(exemplars_scores$score)
+#hist(exemplars_scores$score)
 ```
 
 Creating a Data Frame
@@ -669,52 +792,7 @@ clusters_df <- clusters %>%
   ungroup() %>% 
   arrange(desc(n))
 
-clusters_df
-
-dir.create("C:/Users/Joshua/Documents/rdata/indian_treaties/clusters")
-
-write_csv(clusters_df, "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters/clusters.csv")
-
-extract_code_names <- function(section_names) {
-  splits <- str_split(section_names, "-")
-  vapply(splits, `[`, character(1), 1)
-}
-
-exemplars_summary <- clusters_df$exemplar %>% 
-  extract_code_names() %>% 
-  table() %>% 
-  as.data.frame() %>% as_data_frame() %>% 
-  rename(., code = `.`) %>% 
-  arrange(desc(Freq))
-```
-
-
-
-
-```{r}
-
-#Check if Needed
-join_threshold <- 0.15
-exemplars_scores <- exemplars_scores %>% 
-  filter(score >= 0.15)
-
-join_clusters <- function(row) {
-  exs <- c(row$a, row$b)
-  minval <- which.min(extract_date(exs))
-  exemplar <- exs[minval]
-  duplicate <- exs[ifelse(minval == 1, 2, 1)]
-  clusters[[exemplar]] <<- c(clusters[[exemplar]], clusters[[duplicate]])
-  clusters[[duplicate]] <<- NULL
-  dplyr::as_data_frame(row)
-}
-
-exemplars_scores %>% 
-  rowwise() %>% 
-  do(join_clusters(.))
-
-hist(exemplars_scores$score)
-
-
+#write_csv(clusters_df, "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters/clusters.csv")
 ```
 
 
@@ -751,7 +829,7 @@ cluster_df_years <- cluster_df_years %>%
                     mutate(borrow_span = (doc_year - exemplar_year))
 
 #saveRDS(cluster_df_years, "cluster_df_years.rds")
-cluster_df_years <- readRDS("cluster_df_years.rds")
+# cluster_df_years <- readRDS("cluster_df_years.rds")
 
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
