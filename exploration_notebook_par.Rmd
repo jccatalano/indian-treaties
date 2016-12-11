@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Indian Treaties Workspace"
 output: html_notebook
 ---
 #Text Reuse, Clustering
@@ -106,7 +106,6 @@ corpus2 <- corpus2[wc >= 40]
 
 
 ```{r}
-
 lsh_threshold(h = 40, b = 20)
 
 buckets <- lsh(corpus2, bands = 20, progress = FALSE)
@@ -126,22 +125,19 @@ candidates <- lsh_candidates(buckets)
 ```
 
 ### Comparing Candidates
+
+Filtering out the candidates that turned out not to be matches. 
 ```{r}
 
 similarities <-lsh_compare(candidates, corpus2, jaccard_similarity)
+
+similarities <- filter(similarities, score> .2)
 ```
 
 Histogram of similarities
 ```{r} 
 hist(similarities$score, breaks = 100) 
 ```
-Filtering out the candidates that turned out not to be matches. 
-```{r}
-
-similarities <- filter(similarities, score> .2)
-hist(matches$score, breaks = 100)
-``` 
-
 
 ```{r}
 get_treaty <- function(x) {
@@ -345,7 +341,7 @@ V(G)$color <- colrs[V(G)$treaty_a_year == "1865"]
 ```{r}
 G <- node_att_graph
 
-V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
+#V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
 
 V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
 
@@ -357,9 +353,9 @@ plot(G,
      vertex.label.degree = pi,
      vertex.size = 4, 
      margin = -0,
-     #vertex.label = NA, 
+     vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
-     edge.width = fd_matches$n >1)
+     edge.width = fd_matches$n)
 
 legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21,
        col=c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")) 
@@ -453,11 +449,11 @@ plot(decomposed_broken_graph[[2]],
     main = "Title",
     edge.width = fd_matches$n >2)
 
-G <- decomposed_broken_graph[[3]]
+G2 <- decomposed_broken_graph[[3]]
 
-V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+V(G2)$color <- ifelse(V(G2)$decade == "177", "blue", ifelse(V(G2)$decade == "178","cyan", ifelse(V(G2)$decade == "179","blueviolet", ifelse(V(G2)$decade == "180","darkgreen", ifelse(V(G2)$decade == "181","green", ifelse(V(G2)$decade == "182","orange", ifelse(V(G2)$decade == "183","gold", ifelse(V(G2)$decade == "184","red", ifelse(V(G2)$decade == "185","hotpink", ifelse(V(G2)$decade == "186","yellow", ifelse(V(G2)$decade == "187","black", ifelse(V(G2)$decade == "188","tan", "white" ))))))))))))
 
-plot(G, 
+plot(G2, 
      layout = layout.auto,
      vertex.label.cex = 0.6,
      vertex.label.dist =0,
@@ -723,13 +719,6 @@ hist(exemplars_scores$score)
 
 
 ```{r}
-
-cluster181 <- c("ari0237-00012", "bel0239-00011", "che0232-00012","cro0244-00010","hun0235-00010", "mak0260-00010", "man0242-00012","ogl0230-00011", "oto0256-00010", "paw0258-00011", "pon0225-00010", "rog0603-00012", "sio0227-00014", "uta0856-00011")
-
-
-cluster181 <- get_treaty(cluster181)
-
-
 cluster_df_years <- clusters_df %>%
               mutate(document_id_a = get_treaty(exemplar)) %>%
               mutate(document_id_b = get_treaty(doc)) 
@@ -761,15 +750,18 @@ cluster_df_years <- na.omit(cluster_df_years)
 cluster_df_years <- cluster_df_years %>%
                     mutate(borrow_span = (doc_year - exemplar_year))
 
+#saveRDS(cluster_df_years, "cluster_df_years.rds")
+cluster_df_years <- readRDS("cluster_df_years.rds")
+
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
      xlab="Difference in time between exemplar and borrower in years", 
      border="black", 
      col="green",
      xlim=c(0,60),
-     ylim= c(0,1500),
+     ylim= c(0,100),
      las=1,
-labels =  TRUE,
+     #labels =  TRUE,
      breaks= 50)
 
 plot(h$mids, h$counts, log="y", type='h', lwd=10, lend=2, col= "blue")
