@@ -1,7 +1,15 @@
 ---
 title: "R Notebook"
-output: html_notebook
+output:
+  html_document: default
+  html_notebook: default
 ---
+
+```{r}
+library(igraph)
+```
+
+
 #Digitally Analyzing the Uneven Ground: Language Borrowing in Indian Treaties
 
 *How smooth must be the language of the whites, when they can make right look like wrong, and wrong like right.*
@@ -33,10 +41,13 @@ Using Lincoln Mullen’s "textreuse: Detect Text Reuse and Document Similarity" 
 
 In their study of Indian sovereignty and American law, David Watkins and K. Tsianina Lomawaima describe federal Indian policy as an “uneven ground” characterized by “inconstancy, indeterminacy, and variability” (6). They observed that “Indian policy has not proceeded along some smooth racetrack, but has pitched and bumped over the rutted tracks that the conflicting interests of tribes, states, federal agencies, railroads, energy and industrial barons, homesteaders, tourists, and casual visitors have carved across Indian Country” (6). This section examines just one layer of this uneven ground, Indian treaties. 
 
-From a macro perspective, the nearly 400 different Indian treaties of the uneven ground share many commonalities. In addition to their shared content (land, gifts, payments, protections, trade), they generally followed similar language borrowing patterns. While text reuse is only one indicator of the connections and influences previous treaties had upon subsequent agreements, it is particularly useful in this case. Given the extent to which most treaties contained a narrow set of topics, it can be difficult to say with any certainty which treaties served as templates or models for other treaties (and to a certain extent they all did). The benefit of using digital methods to detect text reuse is that it can identify language pattern similarities that would be nearly impossible to detect using close reading. Thus, it is possible to see what early 19th century treaty someone used as a template in the 1850s. For example, the following two paragraphs are matches returned by the computer program. The first text below is taken from an 1804 treaty with the Sauk and Foxes. The second text is taken from an 1853 treaty with the Umpqua Cow Creek Band. 
+From a macro perspective, the nearly 400 different Indian treaties of the uneven ground share many commonalities. In addition to their shared content (land, gifts, payments, protections, trade), they generally followed similar language borrowing patterns. While text reuse is only one indicator of the connections and influences previous treaties had upon subsequent agreements, it is particularly useful in this case. Given the extent to which most treaties contained a narrow set of topics, it can be difficult to say with any certainty which treaties served as templates or models for other treaties (and to a certain extent they all did). The benefit of using digital methods to detect text reuse is that it can identify language pattern similarities that would be nearly impossible to detect using close reading. Thus, it is possible to see what early 19th century treaty someone used as a template in the 1850s. For example, the following two paragraphs are matches returned by the computer program. The first text below is taken from an 1804 treaty with the Sauk and Foxes. The second text is taken from an 1853 treaty with the Umpqua Cow Creek Band.
+
+1804 Sauk Treaty:
 
 > “Lest the friendship which is now established between the United States and the said Indian tribes should be interrupted by the misconduct of individuals, it is hereby agreed that for injuries done by individuals no private revenge or retaliation shall take place, but, instead thereof, complaints shall be made by the party injured to the other—by the said tribes or either of them to the superintendent of Indian affairs or one of his deputies, and by the superintendent or other person appointed by the President, to the chiefs of the said tribes. And it shall be the duty of the said chiefs upon complaint being made as aforesaid to deliver up the person or persons against whom the complaint is made, to the end that he or they  may be punished agreeably to the laws of the state or territory where the offence may have been committed; and in like manner if any robbery, violence or murder shall be committed on any Indian or Indians belonging to the said tribes or either of them,  the person or persons so offending shall be tried, and if found guilty, punished in the like manner as if the injury had been  done to a white man. And it is further agreed, that the chiefs of the said tribes shall, to the utmost of their power exert themselves to recover horses or other property which may be stolen from any citizen or citizens of the United States by any individual or individuals of their tribes….”
 
+1853 Umpqua Cow Creek Band Treaty:
 
 > “That the friendship which is now established between the United States and the Cow Creek band of Indians, shall not be interrupted  by the misconduct of individuals, it is hereby agreed that for injuries done, no private revenge or retaliation shall take place; but instead thereof complaint shall be made by the party injured to the Indian  agent; and it shall be the duty of the chiefs of said band of Indians, upon complaint being made as aforesaid, to deliver up the person against whom the complaint is made, to the end that he may be punished, agreeably to the laws of the United States; and in like manner if any violation, robbery, or murder shall be committed on any Indian belonging to said band, the person so offending shall be tried, and if found guilty, shall be punished according to the laws of the United States. And it is further agreed that the chiefs shall, to the utmost of their ability, exert themselves to recover horses or other property   which has or may hereafter be stolen from any citizen of the United States, by any individual of said tribe….”
 
@@ -45,7 +56,8 @@ The latter treaty clearly used the former as a template for the structure and co
 In most cases, treaties only borrowed from their immediate temporal predecessors and geographic neighbors. Very rarely did this borrowing occur over long periods of time or across geographic regions. The histogram below charts the time span of treaty borrowing. For example, if a paragraph from treaty_a was written in 1848 and a paragraph from treaty_b was written in 1855, then the span is 7 years. 
 	
 ```{r}
-readRDS("cluster_df_years.rds")
+cluster_df_years <- readRDS("cluster_df_years.rds")
+
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
      xlab="Difference in time between exemplar and borrower in years\n *The first column (1-2 years) = 1113", 
@@ -61,7 +73,10 @@ The vast majority (89%) of the treaty borrowing occurred within a two year span.
 Rather than having a governmentally mandated master document detailing the necessary form and content of a treaty, the commissioners molded treaties to correspond to the unique situational circumstances of the uneven ground.  The following network graph displays the borrowing that occurred between treaties. The width or thickness of the connection edges or lines is a summation of the total number of paragraphs shared between two treaties. 
 
 ```{r}
+fd_matches <- readRDS("fd_matches.rds")
+
 node_att_graph <- readRDS("node_att_graph.rds")
+
 G <- node_att_graph
 
 V(G)$color <- ifelse(V(G)$decade == "177", "blue", 
@@ -109,10 +124,10 @@ plot(sioux_1865,
     edge.width = fd_matches$n >2)
 ```
 
-This commissioner specific language also limited borrowing geographically as the commissioners rarely veered from their groove in the uneven ground. Most often treaties borrowed from their geographic neighbors or from previous agreements with the same nation(s). Even when treaty authors and negotiators used a particular nation’s previous agreements as models, they chose recent treaties. The treaties concerning the Delaware illustrate this point. Between the American Revolution and the Civil War the Delaware nation migrated (often by force) from Pennsylvania to lands west of the Mississippi River in Kansas and Oklahoma. During this time period they signed numerous treaties both as sole signatories and joint signatories. However, when the authors and negotiators of these treaties did look to previous treaties with the Delaware to borrow language, they did not use treaties signed in different geographic regions. The following network graph displays the treaties signed by the Delaware as sole or primary signatories. 
+This commissioner specific language also limited borrowing geographically as the commissioners rarely veered from their groove in the uneven ground. Most often treaties borrowed from their geographic neighbors or from previous agreements with the same nation(s). Even when treaty authors and negotiators used a particular nation’s previous agreements as models, they chose recent treaties. The treaties concerning the Delaware illustrate this point. Between the American Revolution and the Civil War the Delaware nation migrated (often by force) from Pennsylvania to lands west of the Mississippi River in Kansas and Oklahoma. During this time period they signed numerous treaties both as sole signatories and joint signatories. However, when the authors and negotiators of these treaties did look to previous treaties with the Delaware to borrow language, they did not use treaties signed in different geographic regions. The following network graph displays the treaties signed by the Delaware as sole or primary signatories.  
 
 ```{r}
-readRDS("nation_graph.rds")
+nation_graph <- readRDS("nation_graph.rds")
 
 V(nation_graph)$color <- ifelse(V(nation_graph)$decade == "177", "blue",
                          ifelse(V(nation_graph)$decade == "178","cyan",
@@ -129,7 +144,7 @@ V(nation_graph)$color <- ifelse(V(nation_graph)$decade == "177", "blue",
 
 plot(nation_graph, 
      layout = layout.auto,
-     vertex.label.cex = 1.3,
+     vertex.label.cex = 1,
      vertex.label.dist =.9,
      vertex.label.degree = -pi/2,
      vertex.size = 17, 
@@ -146,9 +161,11 @@ As the network shows, the few Delaware treaties that did borrow from previous De
 
 While the general trend for language borrowing among treaties was limited by time and geography, there were some exceptions to this rule. The most obvious example is the 1846 treaty signed by the Comanche, Aionai, Andarko, and Caddo nations. Unlike most treaties, the negotiators/authors of this treaty looked to the distant past for inspiration. The following two texts are taken from the 1789 Treaty of Fort Harmar signed in present day Ohio with several different Indian nations and the aforementioned 1846 treaty negotiated with the Comanche and other nations near modern day Texas respectively. 
 
+1789 Treaty of Fort Harmar
 
 > “It is agreed that if any Indian or Indians of the nations before mentioned, shall commit a murder or robbery on any of the citizens of the United States, the nation or tribe to which the offender belongs, on complaint being made, shall deliver up the person or persons complained of, at the nearest post of the United States; to the end that he or they may be tried, and if found guilty, punished according to the laws established in the territory of  the United States north-west of the river Ohio, for the punishment of such offences, if the same shall have been committed within the said territory; or according to the laws of the State where the offence may have been committed, if the same has happened in any of the United States. In like manner, if any subject or citizen of the United States shall commit murder or robbery on any Indian or…”       
 
+1846 Comanche Treaty:
 
 > “It is agreed that, if any Indians shall commit a murder or robbery on any citizen of the United States, the tribe or nation to which the offender belongs shall deliver up the person or persons so complained of, on complaint being made to their chief, to the nearest post of the United States, to the end that he or they may be tried, and, if found guilty, punished, according to the law of the State or Territory where such offence may have been committed. In like manner, if any subject or citizen of the United States shall commit murder or robbery on any Indian or Indians of the said tribes or nations, upon complaint thereof to the agent residing near them, he or they shall be arrested, tried, and punished according to the law of the State or Territory where such offence may have been committed.”
 

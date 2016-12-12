@@ -187,10 +187,12 @@ similarities2 <- similarities2 %>%
 #saveRDS(similarities, "similarities.rds")
 #saveRDS(similarities2, "similarities2.rds")
 
-# similarities <- readRDS("similarities.rds")
-# similarities2 <- readRDS("similarities2.rds")
+#similarities <- readRDS("similarities.rds")
+#similarities2 <- readRDS("similarities2.rds")
 
 fd_matches <- similarities2
+
+saveRDS(fd_matches, "fd_matches.rds")
 
 ```
 
@@ -448,8 +450,8 @@ plot(broken_graph,
 decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
   min.vertices = 4)
 
-saveRDS(decomposed_broken_graph, "decomposed_broken_graph.rds")
-decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
+#saveRDS(decomposed_broken_graph, "decomposed_broken_graph.rds")
+#decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
 
 plot(decomposed_broken_graph[[2]],
      layout = layout.auto,
@@ -518,9 +520,12 @@ node_df <- node_df %>%
 node_df <- node_df %>% 
   mutate(nation = document_id %>% str_sub(1, 3))
 
-nation_node <- filter(nation_node, nation %in% "del")
+nation_node <- filter(node_df, nation %in% "del")
 
 nation_graph<- graph_from_data_frame(d = get_nation, vertices = nation_node, directed = FALSE)
+
+#saveRDS(nation_graph, "nation_graph.rds")
+#readRDS("nation_graph.rds")
 
 #nation_graph = graph.data.frame(get_nation, directed = FALSE)
 
@@ -832,7 +837,7 @@ cluster_df_years <- cluster_df_years %>%
                     mutate(borrow_span = (doc_year - exemplar_year))
 
 #saveRDS(cluster_df_years, "cluster_df_years.rds")
-# cluster_df_years <- readRDS("cluster_df_years.rds")
+#cluster_df_years <- readRDS("cluster_df_years.rds")
 
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
