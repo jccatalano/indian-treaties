@@ -448,6 +448,9 @@ plot(broken_graph,
 decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
   min.vertices = 4)
 
+saveRDS(decomposed_broken_graph, "decomposed_broken_graph.rds")
+decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
+
 plot(decomposed_broken_graph[[2]],
      layout = layout.auto,
     vertex.label.cex = 0.6,
