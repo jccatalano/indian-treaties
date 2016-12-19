@@ -5,12 +5,12 @@ output:
   html_notebook: default
 ---
 
-```{r}
+```{r libraries, results="hide"}
 library(igraph)
 ```
 
 
-#Digitally Analyzing the Uneven Ground: Language Borrowing in Indian Treaties
+#Digitally Analyzing the Uneven Ground: Language Borrowing Among Indian Treaties
 
 *How smooth must be the language of the whites, when they can make right look like wrong, and wrong like right.*
 

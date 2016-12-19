@@ -24,6 +24,8 @@ library(text2vec)
 library(broom)
 library(apcluster)
 library(readr)
+library(GGally)
+library(intergraph)
 ```
 ###General Analysis
 
@@ -192,7 +194,7 @@ similarities2 <- similarities2 %>%
 
 fd_matches <- similarities2
 
-saveRDS(fd_matches, "fd_matches.rds")
+#saveRDS(fd_matches, "fd_matches.rds")
 
 ```
 
@@ -350,27 +352,55 @@ V(G)$color <- colrs[V(G)$treaty_a_year == "1865"]
 
 ```{r}
 G <- node_att_graph
-
-#V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
-
-V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","blueviolet", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","gold", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
-
-
+V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","darkmagenta", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","springgreen2", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
 plot(G, 
      layout = layout.auto,
      vertex.label.cex = 0.6,
      vertex.label.dist =0,
      vertex.label.degree = pi,
      vertex.size = 4, 
-     margin = -0,
-     vertex.label = NA, 
+     margin = 0,
+     #vertex.label = NA, 
+     main = "Network Graph of Treaty Borrowing",
+     #edge.width = fd_matches$n)
+)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21,
+       col=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan")) 
+```
+
+ 
+```{r}
+G <- node_att_graph
+
+#V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
+
+V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","darkmagenta", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","springgreen2", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+plot(G, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 4, 
+     margin = 0,
+     #vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
      edge.width = fd_matches$n)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8,
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+```
 
-legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21,
-       col=c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")) 
+```{r}
+colrs <- c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan")
 
-t.bg= c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan"),
+V(G)$color <- colrs[V(G)$decade]
+
+legend(x=-1.5, y=-1.1, c("Newspaper","Television", "Online News"), pch=21,
+
+       col="#777777", pt.bg=colrs, pt.cex=2, cex=.8, bty="n", ncol=1)
+
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"), cex=0.8, fill=colors) 
+
+t.bg= c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan")
 
 legend(x=-1.5, y=-1.1, c("Newspaper","Television", "Online News"), pch=21,
        col="#777777", pt.bg=colrs, pt.cex=2, cex=.8, bty="n", ncol=1)
@@ -380,7 +410,22 @@ lty=c(1,1), # gives the legend appropriate symbols (lines)
 
 lwd=c(2.5,2.5),col=c(“blue”,”red”)) # gives the legend lines the correct color and width
 
-colors <- c("blue", "cyan", "blueviolet", "darkgreen", "green", "orange", "gold", "red", "hotpink","yellow", "black", "tan", "white")
+colors <- c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan")
+
+decades <- c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s")
+
+#Failed Attempt at ggnet.
+
+ggnet2(G, size = 6, color = "colors", edge.size = 1, edge.color = "black")
+
+
+
+G %v% "color" = ifelse(G$decade == "177", "blue", ifelse(G$decade == "178","cyan", ifelse(V(G)$decade == "179","darkmagenta", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","springgreen2", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+
+G  = ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","darkmagenta", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","springgreen2", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+
+ggnet2(net, color = "color")
+
 ```
 
 
@@ -478,7 +523,7 @@ plot(sioux_1865,
     edge.width = fd_matches$n >2)
 #need legend
 ```
-
+### Network Graphs of Particular Nations
 ```{r}
 similarities3 <- similarities2
 
@@ -486,21 +531,16 @@ get_treaty2 <- function(x) {
   str_sub(x, 1, 3)
 }
 
-similarities3 <- similarities3 %>% 
-        mutate(treaty_a = get_treaty(a),
-        treaty_b = get_treaty(b)) %>% 
-        count(treaty_a, treaty_b) %>% 
-        arrange(desc(n)) %>% 
-        filter(treaty_a != treaty_b) 
+#similarities3 <- similarities3 %>% 
+#        mutate(treaty_a = get_treaty(a),
+#        treaty_b = get_treaty(b)) %>% 
+#        count(treaty_a, treaty_b) %>% 
+#        arrange(desc(n)) %>% 
+#        filter(treaty_a != treaty_b) 
 
 similarities3 <- similarities3 %>%
                 mutate(nation_a = get_treaty2(treaty_a),
                 nation_b =get_treaty2(treaty_b))
-
-get_nation <- filter(similarities3, nation_a %in% "del",
-              nation_b %in% "del")
-
-
 parsed_treaties2 <- readRDS("parsed_treaties.rds")
 
 parsed_treaties2 <- parsed_treaties2 %>%
@@ -520,16 +560,23 @@ node_df <- node_df %>%
 node_df <- node_df %>% 
   mutate(nation = document_id %>% str_sub(1, 3))
 
-nation_node <- filter(node_df, nation %in% "del")
+```
+##Delaware Nation
+```{r}
 
-nation_graph<- graph_from_data_frame(d = get_nation, vertices = nation_node, directed = FALSE)
+get_nation_del <- filter(similarities3, nation_a %in% "del",
+              nation_b %in% "del")
 
-#saveRDS(nation_graph, "nation_graph.rds")
-#readRDS("nation_graph.rds")
+nation_node_del <- filter(node_df, nation %in% "del")
+
+nation_graph_del<- graph_from_data_frame(d = get_nation_del, vertices = nation_node_del, directed = FALSE)
+
+#saveRDS(nation_graph_del, "nation_graph_del.rds")
+#readRDS("nation_graph_del.rds")
 
 #nation_graph = graph.data.frame(get_nation, directed = FALSE)
 
-plot(nation_graph,
+plot(nation_graph_del,
     layout = layout.auto,
     vertex.label.cex = .9,
     vertex.label.dist = 0.9,
@@ -541,30 +588,70 @@ plot(nation_graph,
     edge.width = fd_matches$n >2)
 
 
+V(nation_graph_del)$color <- ifelse(V(nation_graph_del)$decade == "177", "blue", ifelse(V(nation_graph_del)$decade == "178","cyan", ifelse(V(nation_graph_del)$decade == "179","darkmagenta", ifelse(V(nation_graph_del)$decade == "180","darkgreen", ifelse(V(nation_graph_del)$decade == "181","green", ifelse(V(nation_graph_del)$decade == "182","orange", ifelse(V(nation_graph_del)$decade == "183","springgreen2", ifelse(V(nation_graph_del)$decade == "184","red", ifelse(V(nation_graph_del)$decade == "185","hotpink", ifelse(V(nation_graph_del)$decade == "186","yellow", ifelse(V(nation_graph_del)$decade == "187","black", ifelse(V(nation_graph_del)$decade == "188","tan", "white" ))))))))))))
 
-nation_graph
-
-V(nation_graph)$color <- ifelse(V(nation_graph)$decade == "177", "blue", ifelse(V(nation_graph)$decade == "178","cyan", ifelse(V(nation_graph)$decade == "179","blueviolet", ifelse(V(nation_graph)$decade == "180","darkgreen", ifelse(V(nation_graph)$decade == "181","green", ifelse(V(nation_graph)$decade == "182","orange", ifelse(V(nation_graph)$decade == "183","gold", ifelse(V(nation_graph)$decade == "184","red", ifelse(V(nation_graph)$decade == "185","hotpink", ifelse(V(nation_graph)$decade == "186","yellow", ifelse(V(nation_graph)$decade == "187","black", ifelse(V(nation_graph)$decade == "188","tan", "white" ))))))))))))
-
-plot(nation_graph, 
+plot(nation_graph_del, 
      layout = layout.auto,
-     vertex.label.cex = 1.3,
+     vertex.label.cex = 1,
      vertex.label.dist =.9,
      vertex.label.degree = -pi/2,
      vertex.size = 17, 
      margin = 0.3,
      #vertex.label = NA, 
      main = "Network Graph of Delaware Treaty Borrowing",
+     edge.width = fd_matches$n)
+# Need Legend
+```
+
+##Ojibwe
+
+```{r}
+get_nation_chi <- filter(similarities3, nation_a %in% "chi",
+              nation_b %in% "chi")
+
+
+nation_node_chi <- filter(node_df, nation %in% "chi")
+
+nation_graph_chi<- graph_from_data_frame(d = get_nation_chi, vertices = nation_node_chi, directed = FALSE)
+
+#saveRDS(nation_graph_chi, "nation_graph_chi.rds")
+#readRDS("nation_graph_chi.rds")
+
+plot(nation_graph_chi,
+    layout = layout.auto,
+    vertex.label.cex = .9,
+    vertex.label.dist = 0.9,
+    vertex.label.degree = -pi/2,
+    #vertex.label = NA,
+    margin = .1,
+     vertex.size = 20,
+    main = "Ojibew Treaties",
+    edge.width = fd_matches$n)
+
+E(nation_graph_chi)$color <- "black"
+
+V(nation_graph_chi)$color <- ifelse(V(nation_graph_chi)$decade == "177", "blue", ifelse(V(nation_graph_chi)$decade == "178","cyan", ifelse(V(nation_graph_chi)$decade == "179","darkmagenta", ifelse(V(nation_graph_chi)$decade == "180","darkgreen", ifelse(V(nation_graph_chi)$decade == "181","green", ifelse(V(nation_graph_chi)$decade == "182","orange", ifelse(V(nation_graph_chi)$decade == "183","springgreen2", ifelse(V(nation_graph_chi)$decade == "184","red", ifelse(V(nation_graph_chi)$decade == "185","hotpink", ifelse(V(nation_graph_chi)$decade == "186","yellow", ifelse(V(nation_graph_chi)$decade == "187","black", ifelse(V(nation_graph_chi)$decade == "188","tan", "white" ))))))))))))
+
+plot(nation_graph_chi, 
+     layout = layout.auto,
+     vertex.label.cex = 1,
+     #vertex.label.dist =.9,
+    # vertex.label.degree = -pi/2,
+     vertex.size = 13, 
+     margin = 0.3,
+     #vertex.label = NA, 
+     main = "Network Graph of Ojibwe Treaty Borrowing",
      edge.width = fd_matches$n >0)
 # Need Legend
 ```
 
+## Cluster Including the 1846 Comanche Treaty
 
 ```{r}
 com_0554_graph <- decomposed_broken_graph[[3]]
 
 
-V(com_0554_graph)$color <- ifelse(V(com_0554_graph)$decade == "177", "blue", ifelse(V(com_0554_graph)$decade == "178","cyan", ifelse(V(com_0554_graph)$decade == "179","blueviolet", ifelse(V(com_0554_graph)$decade == "180","darkgreen", ifelse(V(com_0554_graph)$decade == "181","green", ifelse(V(com_0554_graph)$decade == "182","orange", ifelse(V(com_0554_graph)$decade == "183","gold", ifelse(V(com_0554_graph)$decade == "184","red", ifelse(V(com_0554_graph)$decade == "185","hotpink", ifelse(V(com_0554_graph)$decade == "186","yellow", ifelse(V(com_0554_graph)$decade == "187","black", ifelse(V(com_0554_graph)$decade == "188","tan", "white" ))))))))))))
+V(com_0554_graph)$color <- ifelse(V(com_0554_graph)$decade == "177", "blue", ifelse(V(com_0554_graph)$decade == "178","cyan", ifelse(V(com_0554_graph)$decade == "179","darkmagenta", ifelse(V(com_0554_graph)$decade == "180","darkgreen", ifelse(V(com_0554_graph)$decade == "181","green", ifelse(V(com_0554_graph)$decade == "182","orange", ifelse(V(com_0554_graph)$decade == "183","springgreen2", ifelse(V(com_0554_graph)$decade == "184","red", ifelse(V(com_0554_graph)$decade == "185","hotpink", ifelse(V(com_0554_graph)$decade == "186","yellow", ifelse(V(com_0554_graph)$decade == "187","black", ifelse(V(com_0554_graph)$decade == "188","tan", "white" ))))))))))))
 
 plot(com_0554_graph, 
      layout = layout.auto,
@@ -579,10 +666,10 @@ plot(com_0554_graph,
 ```
 
 ```{r}
-G2 <- decomposed_broken_graph[[3]]
+G2 <- decomposed_broken_graph[[2]]
 
 
-V(G2)$color <- ifelse(V(G2)$decade == "177", "blue", ifelse(V(G2)$decade == "178","cyan", ifelse(V(G2)$decade == "179","blueviolet", ifelse(V(G2)$decade == "180","darkgreen", ifelse(V(G2)$decade == "181","green", ifelse(V(G2)$decade == "182","orange", ifelse(V(G2)$decade == "183","gold", ifelse(V(G2)$decade == "184","red", ifelse(V(G2)$decade == "185","hotpink", ifelse(V(G2)$decade == "186","yellow", ifelse(V(G2)$decade == "187","black", ifelse(V(G2)$decade == "188","tan", "white" ))))))))))))
+V(G2)$color <- ifelse(V(G2)$decade == "177", "blue", ifelse(V(G2)$decade == "178","cyan", ifelse(V(G2)$decade == "179","darkmagenta", ifelse(V(G2)$decade == "180","darkgreen", ifelse(V(G2)$decade == "181","green", ifelse(V(G2)$decade == "182","orange", ifelse(V(G2)$decade == "183","springgreen2", ifelse(V(G2)$decade == "184","red", ifelse(V(G2)$decade == "185","hotpink", ifelse(V(G2)$decade == "186","yellow", ifelse(V(G2)$decade == "187","black", ifelse(V(G2)$decade == "188","tan", "white" ))))))))))))
 
 plot(G2, 
      layout = layout.auto,
@@ -590,7 +677,7 @@ plot(G2,
      vertex.label.dist =0,
      vertex.label.degree = pi,
      vertex.size = 9, 
-     margin = -0,
+     margin = -0.3,
      #vertex.label = NA, 
      main = "Network Graph of Treaty Borrowing",
      edge.width = fd_matches$n >2)
