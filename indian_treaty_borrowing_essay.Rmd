@@ -1,8 +1,10 @@
 ---
-title: ""
+title: ''
 output:
   html_document: default
   html_notebook: default
+  pdf_document: default
+  word_document: default
 ---
 
 ```{r libraries, warning=FALSE, message=FALSE, results="hide"}
@@ -15,6 +17,7 @@ library(igraph)
 <center> *How smooth must be the language of the whites, when they can make right look like wrong, and wrong like right.*
 
 *--Blackhawk*</center>
+
 
 Word choice and the functioning of language itself has become an important sub-field within indigenous history. As Patricia Limerick has noted, “the process of invasion, conquest, and colonization was the kind of activity that provoked a shiftiness in verbal behavior.”  As Blackhawk’s quote demonstrates, modern scholars were not the first individuals to recognize words as tools of settler colonialism.^[Patricia Limerick, “Making the Most of Words: Verbal Activity and Western America,”  in William Cronon and George A. Miles, *Under an Open Sky: Rethinking America’s Western Past* (W. W. Norton & Company, 1993), 168.] Jean M. O’Brien’s *Firsting and Lasting: Writing Indians Out of Existence in New England* and James Joseph Buss’ *Winning the West with Words: Language and Conquest in the Lower Great Lakes* demonstrate how non-indigenous authors, politicians, and historians used language to exterminate Indians in the collective American consciousness even if they failed to do so in reality.^[ James Buss, *Winning the West with Words: Language and Conquest in the Lower Great Lakes* (Norman: University of Oklahoma Press, 2011); Jean M. O’Brien, *Firsting and Lasting: Writing Indians Out of Existence in New England* (Minneapolis: University of Minnesota Press, 2010).] Still, the written words that most impact the lives of Native Americans are contained within treaties. 
 
@@ -55,7 +58,7 @@ The latter treaty clearly used the former as a template for the structure and co
 
 In most cases, treaties only borrowed from their immediate temporal predecessors and geographic neighbors. Very rarely did this borrowing occur over long periods of time or across geographic regions. The histogram below charts the time span of treaty borrowing. For example, if a paragraph from treaty_a was written in 1848 and a paragraph from treaty_b was written in 1855, then the span is 7 years. 
 	
-```{r histogram, echo=FALSE}
+```{r histogram, fig.align= "center", echo=FALSE}
 cluster_df_years <- readRDS("cluster_df_years.rds")
 
 hist(abs(cluster_df_years$borrow_span),
@@ -72,7 +75,7 @@ main="Histogram of Paragraph Borrowing Across Time",
 The vast majority (89%) of the treaty borrowing occurred within a two year span. This number is slightly skewed due to the fact that commissioners often composed, within a few days or months, a cluster of treaties dealing with a group of nations or bands. For example, Brigadier-general Henry Atkinson and Indian agent Major Benjamin O'Fallon composed several treaties in 1825 with the Arikara, Makah, Belantse-Etoa (Minitaree), Cheyenne, Crow, Ponca, Pawnee, and Mandan nations in addition to agreements with several bands of the Sioux. All of these treaties were composed within a few months and share over a dozen paragraphs. The text reuse detection model still includes these treaties as examples of borrowing. While this cluster of treaties does not indicate what texts Atkinson and O’Fallen used as models, it does highlight another general characteristic of Indian treaties, contextual composition. 
 Rather than having a governmentally mandated master document detailing the necessary form and content of a treaty, the commissioners molded treaties to correspond to the unique situational circumstances of the uneven ground.  The following network graph displays the borrowing that occurred between treaties. The width or thickness of the connection edges or lines is a summation of the total number of paragraphs shared between two treaties. 
 
-```{r network_graph, fig.width=7, fig.height=7, echo=FALSE}
+```{r network_graph, fig.width=7, fig.height=7, fig.align= "center", echo=FALSE}
 fd_matches <- readRDS("fd_matches.rds")
 
 node_att_graph <- readRDS("node_att_graph.rds")
@@ -97,7 +100,7 @@ legend(x=-1.5, y=.5, c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830
 
 As the network graph indicates, there was very limited borrowing across time. Most of these clusters of treaties contain only one or two colors (corresponding to decades). Also visible are several isolated clusters of treaties that represent the practice of treaty borrowing mentioned above where a commissioner composed several treaties within a short span of time. For example, the following network graph shows the borrowing between the different treaties negotiated with the Sioux bands in 1865.
 
-```{r sioux, echo=FALSE}
+```{r sioux, fig.align= "center", echo=FALSE}
 decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
 
 sioux_1865 <- decomposed_broken_graph[[4]]
@@ -116,7 +119,7 @@ plot(sioux_1865,
 
 This commissioner specific language also limited borrowing geographically as the commissioners rarely veered from their groove in the uneven ground. Most often treaties borrowed from their geographic neighbors or from previous agreements with the same nation(s). Even when treaty authors and negotiators used a particular nation’s previous agreements as models, they chose recent treaties. The treaties concerning the Delaware illustrate this point. Between the American Revolution and the Civil War the Delaware nation migrated (often by force) from Pennsylvania to lands west of the Mississippi River in Kansas and Oklahoma. During this time period they signed numerous treaties both as sole signatories and joint signatories. However, when the authors and negotiators of these treaties did look to previous treaties with the Delaware to borrow language, they did not use treaties signed in different geographic regions. The following network graph displays the treaties signed by the Delaware as sole or primary signatories.  
 
-```{r delaware, echo=FALSE}
+```{r delaware, fig.align= "center", echo=FALSE}
 nation_graph_del <- readRDS("nation_graph_del.rds")
 
 V(nation_graph_del)$color <- ifelse(V(nation_graph_del)$decade == "177", "blue", ifelse(V(nation_graph_del)$decade == "178","cyan", ifelse(V(nation_graph_del)$decade == "179","darkmagenta", ifelse(V(nation_graph_del)$decade == "180","darkgreen", ifelse(V(nation_graph_del)$decade == "181","green", ifelse(V(nation_graph_del)$decade == "182","orange", ifelse(V(nation_graph_del)$decade == "183","springgreen2", ifelse(V(nation_graph_del)$decade == "184","red", ifelse(V(nation_graph_del)$decade == "185","hotpink", ifelse(V(nation_graph_del)$decade == "186","yellow", ifelse(V(nation_graph_del)$decade == "187","black", ifelse(V(nation_graph_del)$decade == "188","tan", "white" ))))))))))))
@@ -151,7 +154,7 @@ While the general trend for language borrowing among treaties was limited by tim
 
 The latter text obviously borrowed the language from the treaty written fifty-seven years before. In addition to the 1789 Treaty of Fort Harmar, the treaty also borrowed language from the 1790 treaty with the Creek, and the 1795 Treaty of Greenville (Ohio). The following network graph shows the sub-group of treaty borrowing containing the 1846 treaty (the only red dot or treaty from the 1840s). 
 
-```{r comanche, echo=FALSE}
+```{r comanche, fig.align= "center", echo=FALSE}
 decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
 
 com_0554_graph <- decomposed_broken_graph[[3]]
@@ -207,7 +210,7 @@ Once again, the authors of the 1846 Comanche Treaty looked to an 18th century tr
 
 While the numerous treaty borrowing networks tell an interesting story of situational dynamics, personal preference, and historical inspiration, how do we make sense of the large number of treaties that did not borrow language from previous documents and did not become exemplars for subsequent agreements? Why did certain treaties borrow language while others did not? For instance, the 1854 Chippewa Treaty does not share any borrowed paragraphs; meanwhile, the 1855 Chippewa Treaty shares several paragraphs with the 1855 Winnebago Treaty in addition to the same paragraph with twelve other treaties. Nothing in the text of the 1854 Chippewa Treaty suggests that it is a unique document. It contains the expected themes and form of any other treaty. The network graph below indicates a different story as the treaty appears as an isolated node without any connections to other treaties. 
 
-```{r chi, fig.width=8, fig.height=8, echo=FALSE}
+```{r chi, fig.width=8.2, fig.height=7.5, fig.align= "center", echo=FALSE}
 chi_1854 <- readRDS("chi_1854.rds")
 
 V(chi_1854)$color <- ifelse(V(chi_1854)$name == "chi0648", "red", ifelse(V(chi_1854)$name == "chi0685","blue", ifelse(V(chi_1854)$name == "ott0725","green", "white")))
@@ -230,7 +233,7 @@ So why did this document not borrow from other texts? Part of the answer may lie
 As Francis Paul Prucha has noted, when problems arose in the treaty making process “pragmatic decisions held sway, with a good deal of discretion left in the hands of the treaty commissioners.”^[Prucha, 208.] In trying to understand the language of any particular treaty, it is necessary to examine the personalities and experience of the commissioners and Indian negotiators. Henry C. Gilbert and David B. Herriman negotiated the 1854 Chippewa Treaty, but unlike many other commissioners, it appears that they only negotiated a small number of treaties. In contrast, the commissioner of the 1855 Chippewa Treaty, George Manypenny was the signatory on over fifty different treaties. Not surprisingly the borrowed or shared paragraphs of the 1855 Chippewa Treaty can be traced back to Manypenny’s other negotiations. The network graph below shows the Manypenny cluster and the subsequent documents that it influenced.
 
  
-```{r manypenny, echo=FALSE}
+```{r manypenny, fig.align= "center", echo=FALSE}
 G2 <- decomposed_broken_graph[[2]]
 
 
