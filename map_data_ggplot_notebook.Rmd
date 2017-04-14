@@ -328,26 +328,46 @@ ggplot(map_data) +
 
 ggplot(map_data_2) + 
       geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a)) + 
-  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b)) +
+  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, color = "grant_fishing")) + 
+  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b, color = "grant_fishing")) +
+  geom_jitter(aes(x = longitude_location_a, y = latitude_location_a)) +  
+  geom_jitter(aes(x = longitude_location_b, y = latitude_location_b)) +
       geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
       coord_map() + 
-      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char)
+      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 ```{r}
-ggplot(map_data) + 
-      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-  geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "blue") + geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "blue")+
-      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
-      coord_map() + 
-      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~decade_a)
+ggplot(map_data_2) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black")  +
+  geom_point(aes(x = longitude_location_a, y = latitude_location_a)) +
+  geom_point(aes(x = longitude_location_b, y = latitude_location_b)) +
+  geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+      coord_map()  + 
+      labs(title= "Map of Language Borrowring by Location") + facet_wrap(~borrowing_decade_char) +
+  theme(plot.title = element_text(hjust = 0.5))
 ```
 
 
 ```{r}
 
-ggplot(map_data) + geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") + geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "blue") + geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "blue") + geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + coord_map()
+ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 3) +
+    
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() 
 
+```
+
+```{r}
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 2, position = position_jitterdodge(jitter.width = 1, jitter.height = 1,
+  dodge.width = 0.75)) +
+  
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() 
 ```
 
