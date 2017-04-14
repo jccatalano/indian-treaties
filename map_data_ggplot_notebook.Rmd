@@ -1,0 +1,353 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(rvest)
+library(magrittr)
+library(tidyverse)
+library(stringr)
+library(pbapply)
+library(parallel)
+library(textreuse)
+library(dplyr)
+library(igraph)
+library(ggplot2)
+library(stringr)
+library(data.table)
+library(Matrix)
+library(tokenizers)
+library(text2vec)
+library(broom)
+library(apcluster)
+library(readr)
+library(GGally)
+library(intergraph)
+```
+
+
+
+```{r}
+#dtm2 is generated below.
+
+parsed_treaties <- readRDS("parsed_treaties.rds")
+addyear <- basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt")
+
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt"))
+
+#dtm2 <- dtm2 %>%
+#  mutate(document_id = rownames(dtm2))
+         
+  
+dtm_to_df <- function(x, words) {
+  stopifnot(is.character(words))
+  out <- as_tibble(as.data.frame(as.matrix(x[, words])))
+  colnames(out) <- words
+  ids <- str_replace_all(rownames(x), "\\.txt", "")
+  ids <- str_split_fixed(ids, "-", n = 2)
+  out %>% 
+    mutate(document_id = ids[ , 1, drop = TRUE])
+          }
+```
+
+
+###Creating the Corpus with Minhashes
+
+```{r createcorpus2, cache=TRUE}
+minhash <- minhash_generator(n = 40, seed = 3552)
+
+corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE, simplify = TRUE, progress = FALSE)
+
+wc <- wordcount(corpus2)
+
+corpus2 <- corpus2[wc >= 40]
+
+#saveRDS(corpus2, "minhashed_corpus_par_level.rds")
+#corpus2 <- readRDS("minhashed_corpus_par_level.rds")
+```
+
+
+
+```{r}
+lsh_threshold(h = 40, b = 20)
+
+buckets <- lsh(corpus2, bands = 20, progress = FALSE)
+
+```
+
+###Finding Candidates
+```{r}
+#matches <- lsh_query(buckets, "19000630400")
+#matches
+
+candidates <- lsh_candidates(buckets)
+
+#saveRDS(candidates,"candidates_par_level.rds")
+#candidates <- readRDS("candidates_par_level.rds")
+ 
+```
+
+### Comparing Candidates
+
+Filtering out the candidates that turned out not to be matches. 
+```{r}
+
+similarities <-lsh_compare(candidates, corpus2, jaccard_similarity)
+
+similarities <- filter(similarities, score> .2)
+
+get_treaty <- function(x) {
+  str_sub(x, 1, 7)
+}
+
+similarities2 <- similarities %>% 
+        mutate(treaty_a = get_treaty(a),
+        treaty_b = get_treaty(b)) %>% 
+        count(treaty_a, treaty_b) %>% 
+        arrange(desc(n)) %>% 
+        filter(treaty_a != treaty_b) 
+        
+
+#Add years to similarities
+parsed_treaties <- readRDS("parsed_treaties.rds")
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_a = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_b = basename(parsed_treaties$file) %>% str_replace("\\.htm", ""))
+
+similarities2 <- similarities2 %>%
+              mutate(document_id_a = treaty_a) %>%
+              mutate(document_id_b = treaty_b) 
+              
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_a")
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_a_year = year)
+
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>%
+                mutate(document_id_b = document_id_b.y)
+
+similarities2 <- subset(similarities2, select = -c(4))
+
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_b")
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_b_year = year)
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
+
+similarities2 <- na.omit(similarities2)
+
+similarities2 <- similarities2 %>%
+                    mutate(borrow_span = (treaty_a_year - treaty_b_year))
+
+#saveRDS(similarities, "similarities.rds")
+#saveRDS(similarities2, "similarities2.rds")
+
+#similarities <- readRDS("similarities.rds")
+#similarities2 <- readRDS("similarities2.rds")
+
+fd_matches <- similarities2
+
+#saveRDS(fd_matches, "fd_matches.rds")
+```
+
+```{r}
+#similarities2 <- readRDS("similarities2.rds")
+
+fd_matches <- similarities2
+
+geo_code <- read.csv("indian_treaties_geo - Sheet1 (3).csv")
+
+
+geo_code_a <- geo_code
+geo_code_b <- geo_code
+
+names(geo_code_a)[names(geo_code_a)=="treaty_id"] <- "treaty_a" 
+names(geo_code_a)[names(geo_code_a)=="latitude_negotiated"] <- "latitude_negotiated_a" 
+names(geo_code_a)[names(geo_code_a)=="longitude_negotiated"] <- "longitude_negotiated_a"
+names(geo_code_a)[names(geo_code_a)=="latitude_location"] <- "latitude_location_a" 
+names(geo_code_a)[names(geo_code_a)=="longitude_location"] <- "longitude_location_a"
+names(geo_code_a)[names(geo_code_a)=="nations"] <- "nations_a"
+names(geo_code_a)[names(geo_code_a)=="us_agents"] <- "us_agents_a"
+
+names(geo_code_b)[names(geo_code_b)=="treaty_id"] <- "treaty_b" 
+names(geo_code_b)[names(geo_code_b)=="latitude_negotiated"] <- "latitude_negotiated_b" 
+names(geo_code_b)[names(geo_code_b)=="longitude_negotiated"] <- "longitude_negotiated_b"
+names(geo_code_b)[names(geo_code_b)=="latitude_location"] <- "latitude_location_b" 
+names(geo_code_b)[names(geo_code_b)=="longitude_location"] <- "longitude_location_b"
+names(geo_code_b)[names(geo_code_b)=="nations"] <- "nations_b"
+names(geo_code_b)[names(geo_code_b)=="us_agents"] <- "us_agents_b"
+
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id )
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_df <- node_df %>% 
+  mutate(decade_full = as.character(as.numeric(decade) * 10)) 
+
+decade_add <- subset(node_df, select = -c(2,3,4))
+
+decade_add_a <- decade_add
+decade_add_b <- decade_add
+
+names(decade_add_a)[names(decade_add_a)=="document_id"] <- "treaty_a"
+names(decade_add_a)[names(decade_add_a)=="decade"] <- "decade_a"
+
+names(decade_add_b)[names(decade_add_b)=="document_id"] <- "treaty_b"
+names(decade_add_b)[names(decade_add_b)=="decade"] <- "decade_b"
+
+
+decade_new_id <- decade_add
+names(decade_new_id)[names(decade_new_id)=="document_id"] <- "treaty_id"
+
+geo_code_decade <- decade_new_id %>%
+  left_join(geo_code, decade_new_id, by = "treaty_id")
+
+
+
+map_data <- fd_matches %>%
+  left_join(geo_code_a, fd_matches, by = "treaty_a") %>%
+  left_join(geo_code_b, fd_matches, by = "treaty_b") %>%
+  left_join(decade_add_a, fd_matches, by = "treaty_a") %>%
+  left_join(decade_add_b, fd_matches, by = "treaty_b")
+  
+
+map_data <- map_data %>%
+  mutate(borrowing_decade = pmax(treaty_a_year, treaty_b_year) %>% str_extract("\\d{3}")) 
+
+map_data <- map_data %>%
+  mutate(borrowing_decade_char = as.character(as.numeric(borrowing_decade) * 10))
+         
+```
+
+```{r}
+
+#creating a new data table to include all treaties. Need to make to data tables match to bind. 
+
+map_data_2 <- map_data
+
+geo_code_decade_2 <- geo_code_decade
+
+names(geo_code_decade_2)[names(geo_code_decade_2)=="treaty_id"] <- "treaty_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="decade_full"] <- "borrowing_decade_char"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="nations"] <- "nations_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="us_agents"] <- "us_agents_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="latitude_negotiated"] <- "latitude_negotiated_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="longitude_negotiated"] <- "longitude_negotiated_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="latitude_location"] <- "latitude_location_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="longitude_location"] <- "longitude_location_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="grant_fishing"] <- "grant_fishing.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_fishing"] <- "restrict_fishing.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_alcohol"] <- "restrict_alcohol.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="grant_hunting"] <- "grant_hunting.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_hunting"] <- "restrict_hunting.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="manypenny"] <- "manypenny.x"
+
+geo_code_decade_2["nations_b"] <- NA
+geo_code_decade_2["us_agents_b"] <- NA
+geo_code_decade_2["latitude_negotiated_b"] <- NA
+geo_code_decade_2["longitude_negotiated_b"] <- NA
+geo_code_decade_2["latitude_location_b"] <- NA
+geo_code_decade_2["longitude_location_b"] <- NA
+geo_code_decade_2["grant_fishing.y"] <- NA
+geo_code_decade_2["restrict_fishing.y"] <- NA
+geo_code_decade_2["restrict_alcohol.y"] <- NA
+geo_code_decade_2["grant_hunting.y"] <- NA
+geo_code_decade_2["restrict_hunting.y"] <- NA
+geo_code_decade_2["manypenny.y"] <- NA
+geo_code_decade_2["borrowing_decade"] <- NA
+
+
+
+geo_code_decade_2["treaty_b"] <- NA
+geo_code_decade_2["n"] <- 0
+geo_code_decade_2["treaty_a_year"] <- NA
+geo_code_decade_2["treaty_b_year"] <- NA
+geo_code_decade_2["decade_full.x"] <- NA
+geo_code_decade_2["decade_full.y"] <- NA
+geo_code_decade_2["borrow_span"] <- 0
+
+
+map_data_2 <- rbind(map_data_2, geo_code_decade_2)
+
+
+```
+
+
+
+```{r}
+library()
+
+ggplot(map_data) + geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue") + geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "red") + geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + coord_map()
+```
+```{r}
+library(USAboundaries)
+
+states_sp <- us_states(states = c("Alabama", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "District of Columbia"))
+
+fortify(states_sp) -> states_df
+
+
+ggplot(map_data) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(aes(x = longitude_negotiated, y = latitude_negotiated, color = decade), data = geo_code_decade) +
+      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+      coord_map() + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Decade")
+  
+ 
+```
+
+
+```{r}
+
+ggplot(map_data_2) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a)) + 
+  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b)) +
+      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+      coord_map() + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char)
+```
+
+```{r}
+ggplot(map_data) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "blue") + geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "blue")+
+      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+      coord_map() + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~decade_a)
+```
+
+
+```{r}
+
+ggplot(map_data) + geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") + geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "blue") + geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "blue") + geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + coord_map()
+
+```
+
