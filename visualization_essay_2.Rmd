@@ -339,9 +339,10 @@ fortify(states_sp) -> states_df
 
 ```
 
-In the fall of 2016, I started a project that digitally analyzed the nearly four hundred treaties negotiated between the U.S. government and the various indigenous nations within its borders. After creating a network graph showing the pattern and degree of language borrowing measured by the number of shared paragraphs, I was surprised by the significant number of treaties that did not borrow language from predecessors. This essay explores two possible explanations for this pattern, but does not find either hypothesis convincing:
-1.	The unconnected nodes (treaties) might be geographically or temporally linked.
-2.	The unconnected nodes (treaties) might suggest a greater degree of indigenous agency.
+In the fall of 2016, I started a project that digitally analyzed the nearly four hundred treaties negotiated between the U.S. government and the various indigenous nations within its borders. After creating a network graph showing the pattern and degree of language borrowing measured by the number of shared paragraphs, I was surprised by the significant number of treaties that did not borrow language from predecessors. This essay explores two possible explanations for this pattern but does not find either hypothesis convincing:
+
+1. The unconnected nodes (treaties) might be geographically or temporally linked.
+2. The unconnected nodes (treaties) might suggest a greater degree of indigenous agency.
 
 In order to test the spatial and temporal dimensions of the network, more data needed to be collected. After geolocating both the location where the treaties were negotiated and the general location of the regions affected by the treaties, I created new visualizations showing the borrowing networks (below). 
 
@@ -409,7 +410,7 @@ ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, c
 ```
 
 
-It appears that there is some connection between the location of negotiation and the inclusion of fishing rights. Although not conclusive, this opens of an avenue for further inquiry, especially if the trend holds true for hunting, gathering, and other rights as well). 
+It appears that there is some connection between the location of negotiation and the inclusion of fishing rights. Although not conclusive, this opens of an avenue for further inquiry, especially if the trend holds true for hunting, gathering, and other rights as well. 
 Overall, these visualizations do not show a strong overall correlation between geography or time and the amount of language borrowing. Still, there are some anomalies such as the lack of borrowing in the 1840s and the connection between fishing rights and geography that require further exploration. 
 
 
