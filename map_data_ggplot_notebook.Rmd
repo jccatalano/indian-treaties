@@ -328,11 +328,9 @@ ggplot(map_data) +
 
 ggplot(map_data_2) + 
       geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, color = "grant_fishing")) + 
-  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b, color = "grant_fishing")) +
-  geom_jitter(aes(x = longitude_location_a, y = latitude_location_a)) +  
-  geom_jitter(aes(x = longitude_location_b, y = latitude_location_b)) +
-      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue") + 
+  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "blue") +
+  geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
       coord_map() + 
       labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char) +
   theme(plot.title = element_text(hjust = 0.5))
@@ -341,8 +339,8 @@ ggplot(map_data_2) +
 ```{r}
 ggplot(map_data_2) + 
       geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black")  +
-  geom_point(aes(x = longitude_location_a, y = latitude_location_a)) +
-  geom_point(aes(x = longitude_location_b, y = latitude_location_b)) +
+  geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "red") +
+  geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "red") +
   geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
       coord_map()  + 
       labs(title= "Map of Language Borrowring by Location") + facet_wrap(~borrowing_decade_char) +
@@ -352,22 +350,105 @@ ggplot(map_data_2) +
 
 ```{r}
 
-ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing)) + 
+ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing, alpha = 0.5)) + 
   geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
     geom_point(size = 3) +
+  labs(title= "Map of Language Borrowring by Location", color = "Granted Fishing Rights", x = "", y = "") +
+  scale_color_manual(values=c("red", "blue")) +
     
  # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
-  coord_map() 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
 
 ```
 
 ```{r}
-ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing)) + 
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing, alpha = 0.5)) + 
   geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-    geom_point(size = 2, position = position_jitterdodge(jitter.width = 1, jitter.height = 1,
+    geom_point(size = 3, position = position_jitterdodge(jitter.width = .75, jitter.height = .75,
   dodge.width = 0.75)) +
-  
+  labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Granted Fishing Rights", x = "", y = "") +
+    scale_color_manual(values=c("red", "blue")) +
  # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
-  coord_map() 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
+   
+```
+
+
+```{r}
+#Create and check list of sinlge nodes
+
+treatybs <- map_data_2[, 2]
+
+treatybs <- treatybs %>% na.omit
+
+treatybs <-unique(treatybs)
+  
+treatyas <- map_data_2[, 1]
+
+table_a <- table(treatyas)
+table_a <- as.data.frame(table_a)
+
+table_a <- table_a %>%
+  filter(Freq < 2)
+
+a_only_once <- table_a[1]
+names(a_only_once)[names(a_only_once)=="treatyas"] <- "treaty_b"
+
+comb <- rbind(a_only_once, treatybs)
+
+comb_table <- table(comb)
+comb_table <- as.data.frame(comb_table)
+
+comb_table <- comb_table %>%
+  filter(Freq < 1)
+
+names(comb_table)[names(comb_table)=="comb"] <- "treaty_a"
+
+single_nodes <- left_join(comb_table, map_data_2, by = "treaty_a")
+
+```
+
+```{#r}
+#Code that did not work
+new_singles <- left_join(single_nodes, map_data_2, by = "treaty_a")
+
+dup_a <- anyduplicated(treatyas$treaty_a)
+
+discrep <- mapply(setdiff,  treatybs)
+
+test <- data.frame(as.list(discrep))
+test <- as.data.frame(t(test))
+names(test)[names(test)=="V1"] <- "treaty_a"
+
+
+singles <- data.frame(as.list(discrep))
+singles <- as.data.frame(t(singles))
+names(singles)[names(singles)=="V1"] <- "treaty_a"
+
+singles <- left_join(singles, map_data_2, by = "treaty_a")
+
+singles <- singles %>%
+  filter(singles$n < 1)
+
+singles_2 <- singles[1]
+
+discrep2 <- mapply(setdiff, singles_2, test)
+
+```
+
+```{r}
+
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(size=2) +
+  geom_jitter(width = .75, height = .75) +
+    geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "red", size=2, data = single_nodes) +
+  labs(title= "Map of Language Borrowring by Location of Negotiation", subtitle = "*Treaties without borrowed paragraphs in red", x = "", y = "") +
+    scale_color_manual(values=c("red", "blue")) +
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = "bottom") 
 ```
 
