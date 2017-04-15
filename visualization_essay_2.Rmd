@@ -1,9 +1,13 @@
 ---
-title: "R Notebook"
-output: html_notebook
+title: "Digitally Detecting Agency"
+author: "Joshua Catalano"
+output:
+  html_document: default
+  html_notebook: default
 ---
 
-```{r}
+
+```{r libraries, include=FALSE, message=FALSE}
 library(rvest)
 library(magrittr)
 library(tidyverse)
@@ -24,11 +28,12 @@ library(apcluster)
 library(readr)
 library(GGally)
 library(intergraph)
+library(USAboundaries)
 ```
 
 
 
-```{r}
+```{r data_prep, echo=FALSE, message=FALSE, warning = FALSE}
 #dtm2 is generated below.
 
 parsed_treaties <- readRDS("parsed_treaties.rds")
@@ -54,35 +59,32 @@ dtm_to_df <- function(x, words) {
 ```
 
 
-###Creating the Corpus with Minhashes
+```{r  data_prep2, echo=FALSE, message=FALSE, warning = FALSE}
+#Creating the Corpus with Minhashes
 
-```{r createcorpus2, cache=TRUE}
-minhash <- minhash_generator(n = 40, seed = 3552)
+#minhash <- minhash_generator(n = 40, seed = 3552)
 
-corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
-                   pattern = "*.txt",
-                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
-                          minhash_func = minhash, keep_tokens = TRUE, simplify = TRUE, progress = FALSE)
+#corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                 #  pattern = "*.txt",
+                  # full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
+                       #   minhash_func = minhash, keep_tokens = TRUE, simplify = TRUE, progress = FALSE)
 
-wc <- wordcount(corpus2)
+#wc <- wordcount(corpus2)
 
-corpus2 <- corpus2[wc >= 40]
+#corpus2 <- corpus2[wc >= 40]
 
 #saveRDS(corpus2, "minhashed_corpus_par_level.rds")
-#corpus2 <- readRDS("minhashed_corpus_par_level.rds")
+corpus2 <- readRDS("minhashed_corpus_par_level.rds")
 ```
 
 
+```{r data_prep3, echo=FALSE, message=FALSE, warning = FALSE}
 
-```{r}
-lsh_threshold(h = 40, b = 20)
+corpus2 <- readRDS("minhashed_corpus_par_level.rds")
+
+#lsh_threshold(h = 40, b = 20)
 
 buckets <- lsh(corpus2, bands = 20, progress = FALSE)
-
-```
-
-
-```{r}
 
 #Finding Candidates
 #matches <- lsh_query(buckets, "19000630400")
@@ -93,10 +95,6 @@ candidates <- lsh_candidates(buckets)
 #saveRDS(candidates,"candidates_par_level.rds")
 #candidates <- readRDS("candidates_par_level.rds")
  
-```
-
-
-```{r}
 ### Comparing Candidates
 
 #Filtering out the candidates that turned out not to be matches. 
@@ -165,9 +163,10 @@ similarities2 <- similarities2 %>%
 fd_matches <- similarities2
 
 #saveRDS(fd_matches, "fd_matches.rds")
-```
+``` 
 
-```{r}
+ 
+```{r data_prep4, echo=FALSE, message=FALSE, warning = FALSE}
 #similarities2 <- readRDS("similarities2.rds")
 
 fd_matches <- similarities2
@@ -248,7 +247,7 @@ map_data <- map_data %>%
          
 ```
 
-```{r}
+```{r data_prep5, echo=FALSE, message=FALSE, warning = FALSE}
 
 #creating a new data table to include all treaties. Need to make  data tables match to bind. 
 
@@ -296,7 +295,7 @@ map_data_2 <- rbind(map_data_2, geo_code_decade_2)
 ```
 
 
-```{r}
+```{r data_prep6, echo=FALSE, message=FALSE, warning = FALSE}
 #Create and check list of sinlge nodes
 
 treatybs <- map_data_2[, 2]
@@ -330,61 +329,23 @@ single_nodes <- left_join(comb_table, map_data_2, by = "treaty_a")
 
 ```
 
-```{#r}
-#Code that did not work
-new_singles <- left_join(single_nodes, map_data_2, by = "treaty_a")
 
-dup_a <- anyduplicated(treatyas$treaty_a)
-
-discrep <- mapply(setdiff,  treatybs)
-
-test <- data.frame(as.list(discrep))
-test <- as.data.frame(t(test))
-names(test)[names(test)=="V1"] <- "treaty_a"
-
-
-singles <- data.frame(as.list(discrep))
-singles <- as.data.frame(t(singles))
-names(singles)[names(singles)=="V1"] <- "treaty_a"
-
-singles <- left_join(singles, map_data_2, by = "treaty_a")
-
-singles <- singles %>%
-  filter(singles$n < 1)
-
-singles_2 <- singles[1]
-
-discrep2 <- mapply(setdiff, singles_2, test)
-
-```
-
-
-
-```{r}
-library()
-
-ggplot(map_data) + geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue") + geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "red") + geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + coord_map()
-```
-```{r}
-library(USAboundaries)
+```{r createmap, echo=FALSE, message=FALSE, warning = FALSE}
+#Create map
 
 states_sp <- us_states(states = c("Alabama", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "District of Columbia"))
 
 fortify(states_sp) -> states_df
 
-
-ggplot(map_data) + 
-      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-  geom_point(aes(x = longitude_negotiated, y = latitude_negotiated, color = decade), data = geo_code_decade) +
-      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
-      coord_map() + 
-      labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Decade")
-  
- 
 ```
 
+In the fall of 2016, I started a project that digitally analyzed the nearly four hundred treaties negotiated between the U.S. government and the various indigenous nations within its borders. After creating a network graph showing the pattern and degree of language borrowing measured by the number of shared paragraphs, I was surprised by the significant number of treaties that did not borrow language from predecessors. This essay explores two possible explanations for this pattern, but does not find either hypothesis convincing:
+1.	The unconnected nodes (treaties) might be geographically or temporally linked.
+2.	The unconnected nodes (treaties) might suggest a greater degree of indigenous agency.
 
-```{r}
+In order to test the spatial and temporal dimensions of the network, more data needed to be collected. After geolocating both the location where the treaties were negotiated and the general location of the regions affected by the treaties, I created new visualizations showing the borrowing networks (below). 
+
+```{r viz1, echo=FALSE, warning = FALSE}
 
 ggplot(map_data_2) + 
       geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
@@ -395,8 +356,7 @@ ggplot(map_data_2) +
       labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
-
-```{r}
+```{r viz2, echo=FALSE, warning = FALSE}
 ggplot(map_data_2) + 
       geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black")  +
   geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "red") +
@@ -407,37 +367,9 @@ ggplot(map_data_2) +
   theme(plot.title = element_text(hjust = 0.5))
 ```
 
+These graphs appear to indicate that the location where a treaty was negotiated did not have a significant impact on the amount of borrowed paragraphs. This finding is somewhat surprising and perhaps a bit misleading. The graphs obfuscate the dense networks of borrowing that occurred at certain hubs of negotiation like St. Louis and Washington, D.C. These graphs also show that borrowing did occur regardless of the decade; however, there are some identifiable trends.  A period of heavy borrowing in the 1850s can be attributed to the influence of Indian Commissioner George Manypenny who oversaw 52 different treaties. Other identifiable networks of borrowing can be seen in the 1810s and 1820s. These correspond to expeditions sent to secure the allegiance of Indigenous peoples during the War of 1812 and a later western expedition respectively.  There is also a strange dearth of borrowing in the 1840s. This is insufficiently explained by the Mexican American War and further investigation is required. When the unconnected nodes are highlighted on the map, it becomes clear that there does not appear to be any strong geographic explanation for their disconnectedness (below). 
 
-```{r}
-
-ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing, alpha = 0.5)) + 
-  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-    geom_point(size = 3) +
-  labs(title= "Map of Language Borrowring by Location", color = "Granted Fishing Rights", x = "", y = "") +
-  scale_color_manual(values=c("red", "blue")) +
-    
- # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
-  coord_map() +
-  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
-
-```
-
-```{r}
-ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing, alpha = 0.5)) + 
-  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-    geom_point(size = 3, position = position_jitterdodge(jitter.width = .75, jitter.height = .75,
-  dodge.width = 0.75)) +
-  labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Granted Fishing Rights", x = "", y = "") +
-    scale_color_manual(values=c("red", "blue")) +
- # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
-  coord_map() +
-  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
-   
-```
-
-
-```{r}
-
+```{r viz3, echo=FALSE, warning = FALSE}
 ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated)) + 
   geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
   geom_point(size=2) +
@@ -450,15 +382,34 @@ ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated)) 
   theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = "bottom") 
 ```
 
-```{r}
+In order to test the possibility of Indigenous agency accounting for the unconnected treaties, I examined whether or not the treaties granted fishing rights. In theory, the treaties that contained clauses protecting fishing rights would suggest a significant amount of indigenous agency or negotiating skill. The following graphs display the treaties that granted fishing rights in blue.
 
-ggplot(map_data_2) + 
-      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
-     geom_jitter(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue",  width = .75, height = .75) + 
-  geom_jitter(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "blue", width = .75, height = .75) +
-  geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
-        coord_map(xlim = c(-75, -79) , ylim = c(37.5, 40.5)) + 
-      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char) +
-  theme(plot.title = element_text(hjust = 0.5))
+```{r viz4, echo=FALSE, warning = FALSE}
+
+ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing )) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 3) +
+  labs(title= "Map of Language Borrowring by Location", subtitle = "*Treaties that granted fishing rights are blue", color = "Granted Fishing Rights", x = "", y = "") +
+  scale_color_manual(values=c("red", "blue")) +
+    
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = "bottom") 
 ```
+```{r viz5,echo=FALSE, warning = FALSE}
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 3, position = position_jitterdodge(jitter.width = .75, jitter.height = .75,
+  dodge.width = 0.75)) +
+  labs(title= "Map of Language Borrowring by Location of Negotiation", subtitle = "*Treaties that granted fishing rights are blue", color = "Granted Fishing Rights", x = "", y = "") +
+    scale_color_manual(values=c("red", "blue")) +
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = "bottom") 
+```
+
+
+It appears that there is some connection between the location of negotiation and the inclusion of fishing rights. Although not conclusive, this opens of an avenue for further inquiry, especially if the trend holds true for hunting, gathering, and other rights as well). 
+Overall, these visualizations do not show a strong overall correlation between geography or time and the amount of language borrowing. Still, there are some anomalies such as the lack of borrowing in the 1840s and the connection between fishing rights and geography that require further exploration. 
+
 
