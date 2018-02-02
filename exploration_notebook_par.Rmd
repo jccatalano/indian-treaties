@@ -26,6 +26,7 @@ library(apcluster)
 library(readr)
 library(GGally)
 library(intergraph)
+library(ggraph)
 ```
 ###General Analysis
 
@@ -195,6 +196,7 @@ similarities2 <- similarities2 %>%
 fd_matches <- similarities2
 
 #saveRDS(fd_matches, "fd_matches.rds")
+#fd_matches <- readRDS("fd_matches.rds")
 
 ```
 
@@ -926,21 +928,44 @@ main="Histogram of Paragraph Borrowing Across Time",
      las=1,
      #labels =  TRUE,
      breaks= 50)
+```
+
+```{r}
+
 
 plot(h$mids, h$counts, log="y", type='h', lwd=10, lend=2, col= "blue")
 
 ```
+
 ```{r}
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
-     xlab="Difference in time between exemplar and borrower in years\n *The first column (1-2 years) = 1113", 
+     xlab="Difference in time between exemplar and borrower in years", 
+     border="black", 
+     col="green",
+     xlim=c(0,60),
+     ylim= c(0,1200),
+     las=1,
+     breaks=50)
+
+
+```
+
+```{r}
+#Histogram with log scale below:
+
+hist(abs(cluster_df_years$borrow_span),
+main="Histogram of Paragraph Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower in years", 
      border="black", 
      col="green",
      xlim=c(0,60),
      ylim= c(0,100),
      las=1,
-     breaks=50)
+     #labels =  TRUE,
+     breaks= 50)
 ```
+
 
 ```{r}
 g <- make_ring(10) %>%
@@ -953,4 +978,40 @@ g <- make_ring(10) %>%
 plot(g)
 ```
 
+
+Attempting to use ggraph instead of igraph
+```{r}
+library(ggraph)
+
+
+
+
+
+SchoolData$Grade[SchoolData$Grade==5] <- "Grade Five"
+
+node_df$decade[node_df$decade==177] <- "1770s"
+node_df$decade[node_df$decade==178] <- "1780s"
+node_df$decade[node_df$decade==179] <- "1790s"
+node_df$decade[node_df$decade==180] <- "1800s"
+node_df$decade[node_df$decade==181] <- "1810s"
+node_df$decade[node_df$decade==182] <- "1820s"
+node_df$decade[node_df$decade==183] <- "1830s"
+node_df$decade[node_df$decade==184] <- "1840s"
+node_df$decade[node_df$decade==185] <- "1850s"
+node_df$decade[node_df$decade==186] <- "1860s"
+node_df$decade[node_df$decade==187] <- "1870s"
+node_df$decade[node_df$decade==188] <- "1880s"
+
+
+
+G3 <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
+
+
+
+ggraph(G3) +
+  geom_edge_link(aes(width = fd_matches$n), alpha = 0.5) +
+  scale_edge_width(range = c(0.2, 4)) +
+      geom_node_point(aes(color = decade))
+
+```
 
