@@ -952,7 +952,7 @@ main="Histogram of Paragraph Borrowing Across Time",
 ```
 
 ```{r}
-#Histogram with log scale below:
+#Attempting Histogram with log scale below:
 
 hist(abs(cluster_df_years$borrow_span),
 main="Histogram of Paragraph Borrowing Across Time", 
@@ -964,6 +964,33 @@ main="Histogram of Paragraph Borrowing Across Time",
      las=1,
      #labels =  TRUE,
      breaks= 50)
+
+#NOT YET CHANGED IN CODE ABOVE
+
+cluster_df_years[7] <- lapply(cluster_df_years[7], abs)
+
+
+qplot(cluster_df_years$borrow_span,
+      geom="histogram",
+      binwidth = 0.8,  
+      main = "Difference in time between exemplar and borrower in years", 
+      xlab = "years",  
+      fill=I("darkgreen"), 
+      col=I("darkgreen"), 
+      alpha=I(1),
+      xlim=c(0,55))
+
+ggplot(data=cluster_df_years, aes(cluster_df_years$borrow_span)) + 
+  geom_histogram(breaks=seq(0, 55, by = 1), 
+                 col="black", 
+                 fill="darkgreen", 
+                 alpha = .9) + 
+  labs(title="Difference in Time Between Exemplar and Borrower") +
+  theme(plot.title = element_text(hjust = 0.5)) +
+  labs(x="Years", y="Count") + 
+  xlim(c(0,55)) +
+  scale_y_log10(breaks = c(5, 10, 50, 1000)) 
+
 ```
 
 
@@ -984,10 +1011,21 @@ Attempting to use ggraph instead of igraph
 library(ggraph)
 
 
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
 
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
 
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
 
-SchoolData$Grade[SchoolData$Grade==5] <- "Grade Five"
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id )
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
 
 node_df$decade[node_df$decade==177] <- "1770s"
 node_df$decade[node_df$decade==178] <- "1780s"
@@ -1011,7 +1049,10 @@ G3 <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE
 ggraph(G3) +
   geom_edge_link(aes(width = fd_matches$n), alpha = 0.5) +
   scale_edge_width(range = c(0.2, 4)) +
-      geom_node_point(aes(color = decade))
+  geom_node_point(aes(color = decade)) 
+  
+  guide = guide_legend(title = "V"))
+ 
 
 ```
 
