@@ -1,0 +1,1205 @@
+---
+title: "A More Thororgh Exploration"
+output: html_notebook
+---
+
+```{r}
+library(rvest)
+library(magrittr)
+library(tidyverse)
+library(stringr)
+library(pbapply)
+library(parallel)
+library(textreuse)
+library(dplyr)
+library(igraph)
+library(ggplot2)
+library(stringr)
+library(data.table)
+library(Matrix)
+library(tokenizers)
+library(text2vec)
+library(broom)
+library(apcluster)
+library(readr)
+library(GGally)
+library(intergraph)
+```
+
+
+
+```{r}
+#dtm2 is generated below.
+
+parsed_treaties <- readRDS("parsed_treaties.rds")
+addyear <- basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt")
+
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt"))
+
+#dtm2 <- dtm2 %>%
+#  mutate(document_id = rownames(dtm2))
+         
+  
+dtm_to_df <- function(x, words) {
+  stopifnot(is.character(words))
+  out <- as_tibble(as.data.frame(as.matrix(x[, words])))
+  colnames(out) <- words
+  ids <- str_replace_all(rownames(x), "\\.txt", "")
+  ids <- str_split_fixed(ids, "-", n = 2)
+  out %>% 
+    mutate(document_id = ids[ , 1, drop = TRUE])
+          }
+```
+###Creating a Corpus without minhashes
+
+```{r createcorpus, cache=TRUE}
+corpus <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5, simplify = TRUE,
+                          progress = FALSE)
+#saveRDS(corpus, "corpus_no_minhashes.rds")
+#corpus <- readRDS("corpus_no_minhashes.rds")
+```
+
+###Creating the Corpus with Minhashes
+
+```{r createcorpus2, cache=TRUE}
+minhash <- minhash_generator(n = 240, seed = 3552)
+
+corpus2 <- TextReuseCorpus(list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE), tokenizer = tokenize_ngrams, n = 5,
+                          minhash_func = minhash, keep_tokens = TRUE, simplify = TRUE, progress = FALSE)
+
+wc <- wordcount(corpus2)
+
+corpus2 <- corpus2[wc >= 40]
+
+#saveRDS(corpus2, "minhashed_corpus_par_level.rds")
+#corpus2 <- readRDS("minhashed_corpus_par_level.rds")
+saveRDS(corpus2, "corpus_240_240.rds")
+#corpus_240_240 <- readRDS("corpus_240_240.rds")
+
+```
+
+
+
+```{r}
+lsh_threshold(h = 240, b = 240)
+
+buckets <- lsh(corpus2, bands = 240)
+
+saveRDS(buckets,"buckets_240_240.rds")
+#buckets_240_240 <- readRDS("buckets_240_240.rds")
+
+```
+
+
+```{r}
+
+#Finding Candidates
+matches <- lsh_query(buckets, "19000630400")
+#matches
+
+candidates <- lsh_candidates(buckets)
+
+#saveRDS(candidates,"candidates_par_level.rds")
+#candidates <- readRDS("candidates_par_level.rds")
+ 
+```
+
+
+```{r}
+### Comparing Candidates
+
+#Filtering out the candidates that turned out not to be matches. 
+
+similarities <-lsh_compare(candidates, corpus2, jaccard_similarity)
+
+similarities_240_240 <- similarities
+
+#saveRDS(similarities_240_240,"similarities_240_240.rds")
+similarities_240_240 <- readRDS("similarities_240_240.rds")
+
+similarities <-similarities_240_240
+ 
+similarities_filter <- filter(similarities_240_240, score> .03)
+
+#removing complete treaties
+
+treaty_ids <- geo_code[1]
+treaty_ids <- as.vector(treaty_ids$treaty_id)
+
+test <- similarities_filter %>%
+  filter(!(similarities_filter$a %in% treaty_ids)) 
+
+test <- test %>%
+  filter(!(test$b %in% treaty_ids))
+
+
+get_treaty <- function(x) {
+  str_sub(x, 1, 7)
+}
+
+similarities2 <- test
+
+similarities2 <- similarities %>% 
+        mutate(treaty_a = get_treaty(a),
+        treaty_b = get_treaty(b)) %>% 
+        count(treaty_a, treaty_b) %>% 
+        arrange(desc(n)) %>% 
+        filter(treaty_a != treaty_b) 
+        
+
+#Add years to similarities
+parsed_treaties <- readRDS("parsed_treaties.rds")
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_a = basename(parsed_treaties$file) %>% str_replace("\\.htm", "")) %>%
+  mutate(document_id_b = basename(parsed_treaties$file) %>% str_replace("\\.htm", ""))
+
+similarities2 <- similarities2 %>%
+              mutate(document_id_a = treaty_a) %>%
+              mutate(document_id_b = treaty_b) 
+              
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_a")
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_a_year = year)
+
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4))
+
+similarities2 <- similarities2 %>%
+                mutate(document_id_b = document_id_b.y)
+
+similarities2 <- subset(similarities2, select = -c(4))
+
+similarities2 <- left_join(parsed_treaties, similarities2, by = "document_id_b")
+
+similarities2 <- similarities2 %>% 
+                mutate(treaty_b_year = year)
+
+similarities2 <- subset(similarities2, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
+
+similarities2 <- na.omit(similarities2)
+
+similarities2 <- similarities2 %>%
+                    mutate(borrow_span = (treaty_a_year - treaty_b_year))
+
+#saveRDS(similarities, "similarities.rds")
+#saveRDS(similarities2, "similarities2.rds")
+
+#similarities <- readRDS("similarities.rds")
+#similarities2 <- readRDS("similarities2.rds")
+
+fd_matches <- similarities2
+
+#saveRDS(fd_matches, "fd_matches.rds")
+```
+
+```{r}
+#similarities2 <- readRDS("similarities2.rds")
+
+fd_matches <- similarities2
+
+geo_code <- read.csv("indian_treaties_geo - Sheet1 (3).csv")
+
+
+geo_code_a <- geo_code
+geo_code_b <- geo_code
+
+names(geo_code_a)[names(geo_code_a)=="treaty_id"] <- "treaty_a" 
+names(geo_code_a)[names(geo_code_a)=="latitude_negotiated"] <- "latitude_negotiated_a" 
+names(geo_code_a)[names(geo_code_a)=="longitude_negotiated"] <- "longitude_negotiated_a"
+names(geo_code_a)[names(geo_code_a)=="latitude_location"] <- "latitude_location_a" 
+names(geo_code_a)[names(geo_code_a)=="longitude_location"] <- "longitude_location_a"
+names(geo_code_a)[names(geo_code_a)=="nations"] <- "nations_a"
+names(geo_code_a)[names(geo_code_a)=="us_agents"] <- "us_agents_a"
+
+names(geo_code_b)[names(geo_code_b)=="treaty_id"] <- "treaty_b" 
+names(geo_code_b)[names(geo_code_b)=="latitude_negotiated"] <- "latitude_negotiated_b" 
+names(geo_code_b)[names(geo_code_b)=="longitude_negotiated"] <- "longitude_negotiated_b"
+names(geo_code_b)[names(geo_code_b)=="latitude_location"] <- "latitude_location_b" 
+names(geo_code_b)[names(geo_code_b)=="longitude_location"] <- "longitude_location_b"
+names(geo_code_b)[names(geo_code_b)=="nations"] <- "nations_b"
+names(geo_code_b)[names(geo_code_b)=="us_agents"] <- "us_agents_b"
+
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id )
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_df <- node_df %>% 
+  mutate(decade_full = as.character(as.numeric(decade) * 10)) 
+
+decade_add <- subset(node_df, select = -c(2,3,4))
+
+decade_add_a <- decade_add
+decade_add_b <- decade_add
+
+names(decade_add_a)[names(decade_add_a)=="document_id"] <- "treaty_a"
+names(decade_add_a)[names(decade_add_a)=="decade"] <- "decade_a"
+
+names(decade_add_b)[names(decade_add_b)=="document_id"] <- "treaty_b"
+names(decade_add_b)[names(decade_add_b)=="decade"] <- "decade_b"
+
+
+decade_new_id <- decade_add
+names(decade_new_id)[names(decade_new_id)=="document_id"] <- "treaty_id"
+
+geo_code_decade <- decade_new_id %>%
+  left_join(geo_code, decade_new_id, by = "treaty_id")
+
+
+
+map_data <- fd_matches %>%
+  left_join(geo_code_a, fd_matches, by = "treaty_a") %>%
+  left_join(geo_code_b, fd_matches, by = "treaty_b") %>%
+  left_join(decade_add_a, fd_matches, by = "treaty_a") %>%
+  left_join(decade_add_b, fd_matches, by = "treaty_b")
+  
+
+map_data <- map_data %>%
+  mutate(borrowing_decade = pmax(treaty_a_year, treaty_b_year) %>% str_extract("\\d{3}")) 
+
+map_data <- map_data %>%
+  mutate(borrowing_decade_char = as.character(as.numeric(borrowing_decade) * 10))
+         
+```
+
+```{r}
+
+#creating a new data table to include all treaties. Need to make  data tables match to bind. 
+
+map_data_2 <- map_data
+
+geo_code_decade_2 <- geo_code_decade
+
+names(geo_code_decade_2)[names(geo_code_decade_2)=="treaty_id"] <- "treaty_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="decade_full"] <- "borrowing_decade_char"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="nations"] <- "nations_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="us_agents"] <- "us_agents_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="latitude_negotiated"] <- "latitude_negotiated_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="longitude_negotiated"] <- "longitude_negotiated_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="latitude_location"] <- "latitude_location_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="longitude_location"] <- "longitude_location_a"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="grant_fishing"] <- "grant_fishing.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_fishing"] <- "restrict_fishing.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_alcohol"] <- "restrict_alcohol.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="grant_hunting"] <- "grant_hunting.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="restrict_hunting"] <- "restrict_hunting.x"
+names(geo_code_decade_2)[names(geo_code_decade_2)=="manypenny"] <- "manypenny.x"
+
+geo_code_decade_2["nations_b"] <- NA
+geo_code_decade_2["us_agents_b"] <- NA
+geo_code_decade_2["latitude_negotiated_b"] <- NA
+geo_code_decade_2["longitude_negotiated_b"] <- NA
+geo_code_decade_2["latitude_location_b"] <- NA
+geo_code_decade_2["longitude_location_b"] <- NA
+geo_code_decade_2["grant_fishing.y"] <- NA
+geo_code_decade_2["restrict_fishing.y"] <- NA
+geo_code_decade_2["restrict_alcohol.y"] <- NA
+geo_code_decade_2["grant_hunting.y"] <- NA
+geo_code_decade_2["restrict_hunting.y"] <- NA
+geo_code_decade_2["manypenny.y"] <- NA
+geo_code_decade_2["borrowing_decade"] <- NA
+geo_code_decade_2["treaty_b"] <- NA
+geo_code_decade_2["n"] <- 0
+geo_code_decade_2["treaty_a_year"] <- NA
+geo_code_decade_2["treaty_b_year"] <- NA
+geo_code_decade_2["decade_full.x"] <- NA
+geo_code_decade_2["decade_full.y"] <- NA
+geo_code_decade_2["borrow_span"] <- 0
+
+map_data_2 <- rbind(map_data_2, geo_code_decade_2)
+```
+
+
+```{r}
+#Create and check list of sinlge nodes
+
+treatybs <- map_data_2[, 2]
+
+treatybs <- treatybs %>% na.omit
+
+treatybs <-unique(treatybs)
+  
+treatyas <- map_data_2[, 1]
+
+table_a <- table(treatyas)
+table_a <- as.data.frame(table_a)
+
+table_a <- table_a %>%
+  filter(Freq < 2)
+
+a_only_once <- table_a[1]
+names(a_only_once)[names(a_only_once)=="treatyas"] <- "treaty_b"
+
+comb <- rbind(a_only_once, treatybs)
+
+comb_table <- table(comb)
+comb_table <- as.data.frame(comb_table)
+
+comb_table <- comb_table %>%
+  filter(Freq < 1)
+
+names(comb_table)[names(comb_table)=="comb"] <- "treaty_a"
+
+single_nodes <- left_join(comb_table, map_data_2, by = "treaty_a")
+
+```
+
+```{#r}
+#Code that did not work
+new_singles <- left_join(single_nodes, map_data_2, by = "treaty_a")
+
+dup_a <- anyduplicated(treatyas$treaty_a)
+
+discrep <- mapply(setdiff,  treatybs)
+
+test <- data.frame(as.list(discrep))
+test <- as.data.frame(t(test))
+names(test)[names(test)=="V1"] <- "treaty_a"
+
+
+singles <- data.frame(as.list(discrep))
+singles <- as.data.frame(t(singles))
+names(singles)[names(singles)=="V1"] <- "treaty_a"
+
+singles <- left_join(singles, map_data_2, by = "treaty_a")
+
+singles <- singles %>%
+  filter(singles$n < 1)
+
+singles_2 <- singles[1]
+
+discrep2 <- mapply(setdiff, singles_2, test)
+
+```
+
+
+
+```{r}
+library()
+
+ggplot(map_data) + geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue") + geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "red") + geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + coord_map()
+```
+```{r}
+library(USAboundaries)
+
+states_sp <- us_states(states = c("Alabama", "Arizona", "Arkansas", "California", "Colorado", "Connecticut", "Delaware", "Florida", "Georgia", "Idaho", "Illinois", "Indiana", "Iowa", "Kansas", "Kentucky", "Louisiana", "Maine", "Maryland", "Massachusetts", "Michigan", "Minnesota", "Mississippi", "Missouri", "Montana", "Nebraska", "Nevada", "New Hampshire", "New Jersey", "New Mexico", "New York", "North Carolina", "North Dakota", "Ohio", "Oklahoma", "Oregon", "Pennsylvania", "Rhode Island", "South Carolina", "South Dakota", "Tennessee", "Texas", "Utah", "Vermont", "Virginia", "Washington", "West Virginia", "Wisconsin", "Wyoming", "District of Columbia"))
+
+fortify(states_sp) -> states_df
+
+
+ggplot(map_data) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(aes(x = longitude_negotiated, y = latitude_negotiated, color = decade_full), data = geo_code_decade) +
+      geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+      coord_map() + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Decade")
+  
+ 
+```
+```{r}
+# Using forcats to colapse down decades. I want to combine the 1770s, 1780s, and 1790s into one pre-1800 and and 1860s, 1870s, and 1880s into a post 1860. 
+
+map_data_2<- map_data_2 %>% 
+  mutate(borrowing_decade_char = fct_collapse(borrowing_decade_char, "Before 1800" = c("1770", "1780", "1790"), "After 1860" = c("1860", "1870", "1880")))
+```
+
+
+```{r fig.width=8, fig.height=10, fig.align= "center", echo=FALSE}
+
+ggplot(map_data_2) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue") + 
+  geom_point(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "blue") +
+  geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+      coord_map() + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char, ncol = 2) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+```{r}
+ggplot(map_data_2) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black")  +
+  geom_point(aes(x = longitude_location_a, y = latitude_location_a), color = "red") +
+  geom_point(aes(x = longitude_location_b, y = latitude_location_b), color = "red") +
+  geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+      coord_map()  + 
+      labs(title= "Map of Language Borrowring by Location") + facet_wrap(~borrowing_decade_char) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+
+```{r}
+
+ggplot(geo_code_decade, aes(x = longitude_location, y = latitude_location, color = grant_fishing, alpha = 0.5)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 3) +
+  labs(title= "Map of Language Borrowring by Location", color = "Granted Fishing Rights", x = "", y = "") +
+  scale_color_manual(values=c("red", "blue")) +
+    
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
+
+```
+
+```{r}
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated, color = grant_fishing, alpha = 0.5)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+    geom_point(size = 3, position = position_jitterdodge(jitter.width = .75, jitter.height = .75,
+  dodge.width = 0.75)) +
+  labs(title= "Map of Language Borrowring by Location of Negotiation", color = "Granted Fishing Rights", x = "", y = "") +
+    scale_color_manual(values=c("red", "blue")) +
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), legend.position = "bottom") 
+   
+```
+
+
+```{r}
+
+ggplot(geo_code_decade, aes(x = longitude_negotiated, y = latitude_negotiated)) + 
+  geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+  geom_point(size=2) +
+  geom_jitter(width = .75, height = .75) +
+    geom_point(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "red", size=2, data = single_nodes) +
+    labs(title= "Map of Language Borrowring by Location of Negotiation", subtitle = "*Treaties without borrowed paragraphs in red", x = "", y = "") +
+    scale_color_manual(values=c("red", "blue")) +
+ # geom_segment(aes(x = longitude_location_a, y = latitude_location_a, xend = longitude_location_b, yend = latitude_location_b)) + 
+  coord_map() +
+  theme(plot.title = element_text(hjust = 0.5), plot.subtitle = element_text(hjust = 0.5), legend.position = "bottom") 
+```
+
+```{r}
+
+ggplot(map_data_2) + 
+      geom_polygon(aes(x = long, y = lat, group = group), data = states_df, fill = "white", color = "black") +
+     geom_jitter(aes(x = longitude_negotiated_a, y = latitude_negotiated_a), color = "blue",  width = .75, height = .75) + 
+  geom_jitter(aes(x = longitude_negotiated_b, y = latitude_negotiated_b), color = "blue", width = .75, height = .75) +
+  geom_segment(aes(x = longitude_negotiated_a, y = latitude_negotiated_a, xend = longitude_negotiated_b, yend = latitude_negotiated_b)) + 
+        coord_map(xlim = c(-75, -79) , ylim = c(37.5, 40.5)) + 
+      labs(title= "Map of Language Borrowring by Location of Negotiation") + facet_wrap(~borrowing_decade_char) +
+  theme(plot.title = element_text(hjust = 0.5))
+```
+
+###Treaty Borrowing at the Document Level
+
+The following are network graphs of the treaties with the edges representing the number of shared paragraphs. 
+```{r}
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id )
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_att_graph <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
+
+#saveRDS(node_att_graph, "node_att_graph.rds")
+#node_att_graph <- readRDS("node_att_graph.rds")
+
+sample_graph <- node_att_graph
+
+#saveRDS(sample_graph, "sample_graph.rds")
+#sample_graph <- readRDS("sample_graph.rds")  
+
+#Old way to create igraph = graph.data.frame(fd_matches,directed = FALSE)
+
+plot(sample_graph, 
+     layout = layout.auto,
+    #vertex.label.cex = 0.7,
+    vertex.label = NA,
+    margin = -0,
+     vertex.size = 3,
+    main = "Network Graph of Treaty Borrowing",
+    edge.width = fd_matches$n >2)
+    
+```
+
+
+```{#r}
+
+#Trial to recreate igraph with node attributes
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+
+node_att_graph <- graph_from_data_frame(d = fd_matches, vertices = node_df, directed = FALSE)
+
+
+plot(node_att_graph)
+
+G <- node_att_graph
+
+V(G)$color <- ifelse(V(G)$year =="1865", "lightblue", "orange")
+
+plot(G, 
+     layout = layout.auto, 
+     vertex.size = 4, 
+     vertex.label = NA, 
+     edge.width = fd_matches$n >2)    
+
+colrs <- c("red", "orange")
+V(G)$color <- colrs[V(G)$treaty_a_year == "1865"]
+
+#Attempt to seperate by decade
+#seventeen_eighties <- filter(fd_matches, treaty_a_year == c(1780:1789))
+                       
+                       #| treaty_b_year == c(1780:1789))
+
+
+```
+
+ 
+```{r}
+G <- node_att_graph
+
+#V(G)$color <- ifelse(V(G)$year > 1820 & V(G)$year< 1829, "lightblue", "orange") 
+
+V(G)$color <- ifelse(V(G)$decade == "177", "blue", ifelse(V(G)$decade == "178","cyan", ifelse(V(G)$decade == "179","darkmagenta", ifelse(V(G)$decade == "180","darkgreen", ifelse(V(G)$decade == "181","green", ifelse(V(G)$decade == "182","orange", ifelse(V(G)$decade == "183","springgreen2", ifelse(V(G)$decade == "184","red", ifelse(V(G)$decade == "185","hotpink", ifelse(V(G)$decade == "186","yellow", ifelse(V(G)$decade == "187","black", ifelse(V(G)$decade == "188","tan", "white" ))))))))))))
+plot(G, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 4, 
+     margin = 0,
+     #vertex.label = NA, 
+     main = "Network Graph of Treaty Borrowing",
+     edge.width = fd_matches$n)
+legend(x=-2, y=1., c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8, title="Decades",
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+```
+Showing the 1854 and 1855 Chippewa Treaties
+```{r}
+chi_1854 <- sample_graph
+
+#saveRDS(chi_1854, "chi_1854.rds")
+#chi_1854 <- readRDS("chi_1854.rds")
+
+V(chi_1854)$color <- ifelse(V(chi_1854)$name == "chi0648", "red", ifelse(V(chi_1854)$name == "chi0685","blue", ifelse(V(chi_1854)$name == "ott0725","green", "white")))
+
+plot(chi_1854, 
+     layout = layout.auto,
+    vertex.label.cex = 0.7,
+    #vertex.label.color =  ifelse(V(sample_graph)$name == "chi0648", "blue", "black"),
+    vertex.label = NA,
+    margin = -0,
+    vertex.size = 4,
+    main = "Selected Chippewa Treaties",
+    edge.width = fd_matches$n >5)
+legend("left", c("1854 Wisconsin \n (with fishing rights)","1855 Washington \n (w/o fishing rights)", "1855 Detroit \n (with fishing rights)"),  pch=21, pt.cex=2, cex=.8, title="Chippewa Treaties",
+       pt.bg=c("red", "blue", "green"))
+```
+###Decomposing the Document Network
+```{r}
+components_whole <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 5)
+
+plot(components_whole[[1]],
+     layout = layout.auto,
+    #vertex.label.cex = 0.6,
+    vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Title",
+    edge.width = fd_matches$n >50)
+
+```
+The largest cluster:
+```{r}
+components_whole_1 <- (components_whole[[1]])
+
+plot(components_whole_1, 
+     layout = layout.auto,
+    #vertex.label.cex = 0.6,
+    vertex.label = NA,
+    margin = -0.2,
+     vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n)
+
+
+
+```
+Attempt to split the graph apart futher by removing vertices and the decomposing.
+
+```{r}
+broken_graph <- sample_graph
+
+removed_vertices <- c("cre0155", "com0600", "cre0214", "wya0145", "iow0208", "pot0168", "mia0531", "sau0207",  "qua0160")
+#removed_edges <- c("osa0095|osa0167")
+
+broken_graph <- delete_vertices(broken_graph, removed_vertices)                 #
+
+#delete_edges(broken_graph, removed_edges) 
+ 
+plot(broken_graph,
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0.1,
+    vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n >3)
+
+decomposed_broken_graph <-decompose(broken_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 4)
+
+#saveRDS(decomposed_broken_graph, "decomposed_broken_graph.rds")
+#decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
+
+plot(decomposed_broken_graph[[2]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Title",
+    edge.width = fd_matches$n >2)
+```
+```{r}
+
+sioux_1865 <- decomposed_broken_graph[[4]]
+
+plot(sioux_1865,
+     layout = layout.auto,
+    vertex.label.cex = .9,
+    vertex.label.dist = 0.9,
+    vertex.label.degree = -pi/2,
+    #vertex.label = NA,
+    margin = .1,
+     vertex.size = 20,
+    main = "Treaties with Sioux Bands, 1865",
+    edge.width = fd_matches$n >2)
+#need legend
+```
+### Network Graphs of Particular Nations
+```{r}
+similarities3 <- similarities2
+
+get_treaty2 <- function(x) {
+  str_sub(x, 1, 3)
+}
+
+#similarities3 <- similarities3 %>% 
+#        mutate(treaty_a = get_treaty(a),
+#        treaty_b = get_treaty(b)) %>% 
+#        count(treaty_a, treaty_b) %>% 
+#        arrange(desc(n)) %>% 
+#        filter(treaty_a != treaty_b) 
+
+similarities3 <- similarities3 %>%
+                mutate(nation_a = get_treaty2(treaty_a),
+                nation_b =get_treaty2(treaty_b))
+
+#saveRDS(similarities3, "similarities3")
+# similarities3 <- readRDS("similarities3")
+
+parsed_treaties2 <- readRDS("parsed_treaties.rds")
+
+parsed_treaties2 <- parsed_treaties2 %>%
+      mutate(document_id = basename(parsed_treaties2$file) %>% str_replace("\\.htm", ""))
+
+node_df <- subset(parsed_treaties2, select = -c(1, 2, 3, 4))
+          
+node_df <- node_df[, c(2,1)]
+
+node_df <- node_df %>%
+          mutate(treaty_lookup = document_id)
+                 
+
+node_df <- node_df %>%
+          mutate(decade = year %>% str_extract("\\d{3}"))
+
+node_df <- node_df %>% 
+  mutate(nation = document_id %>% str_sub(1, 3))
+
+#saveRDS(node_df, "node_df")
+#node_df <- readRDS("node_df")
+
+```
+##Delaware Nation
+```{r}
+
+get_nation_del <- filter(similarities3, nation_a %in% "del",
+              nation_b %in% "del")
+
+nation_node_del <- filter(node_df, nation %in% "del")
+
+nation_graph_del<- graph_from_data_frame(d = get_nation_del, vertices = nation_node_del, directed = FALSE)
+
+#saveRDS(nation_graph_del, "nation_graph_del.rds")
+#readRDS("nation_graph_del.rds")
+
+#nation_graph = graph.data.frame(get_nation, directed = FALSE)
+
+V(nation_graph_del)$color <- ifelse(V(nation_graph_del)$decade == "177", "blue", ifelse(V(nation_graph_del)$decade == "178","cyan", ifelse(V(nation_graph_del)$decade == "179","darkmagenta", ifelse(V(nation_graph_del)$decade == "180","darkgreen", ifelse(V(nation_graph_del)$decade == "181","green", ifelse(V(nation_graph_del)$decade == "182","orange", ifelse(V(nation_graph_del)$decade == "183","springgreen2", ifelse(V(nation_graph_del)$decade == "184","red", ifelse(V(nation_graph_del)$decade == "185","hotpink", ifelse(V(nation_graph_del)$decade == "186","yellow", ifelse(V(nation_graph_del)$decade == "187","black", ifelse(V(nation_graph_del)$decade == "188","tan", "white" ))))))))))))
+
+plot(nation_graph_del, 
+     layout = layout.auto,
+     vertex.label.cex = 1,
+     vertex.label.dist =.9,
+     vertex.label.degree = -pi/2,
+     vertex.size = 17, 
+     margin = 0.3,
+     #vertex.label = NA, 
+     main = "Network Graph of Delaware Treaty Borrowing",
+     edge.width = fd_matches$n)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8, title="Decades",
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+```
+
+##Ojibwe
+
+```{r}
+get_nation_chi <- filter(similarities3, nation_a %in% "chi",
+              nation_b %in% "chi")
+
+
+nation_node_chi <- filter(node_df, nation %in% "chi")
+
+nation_graph_chi<- graph_from_data_frame(d = get_nation_chi, vertices = nation_node_chi, directed = FALSE)
+
+#saveRDS(nation_graph_chi, "nation_graph_chi.rds")
+#readRDS("nation_graph_chi.rds")
+
+
+E(nation_graph_chi)$color <- "black"
+
+V(nation_graph_chi)$color <- ifelse(V(nation_graph_chi)$decade == "177", "blue", ifelse(V(nation_graph_chi)$decade == "178","cyan", ifelse(V(nation_graph_chi)$decade == "179","darkmagenta", ifelse(V(nation_graph_chi)$decade == "180","darkgreen", ifelse(V(nation_graph_chi)$decade == "181","green", ifelse(V(nation_graph_chi)$decade == "182","orange", ifelse(V(nation_graph_chi)$decade == "183","springgreen2", ifelse(V(nation_graph_chi)$decade == "184","red", ifelse(V(nation_graph_chi)$decade == "185","hotpink", ifelse(V(nation_graph_chi)$decade == "186","yellow", ifelse(V(nation_graph_chi)$decade == "187","black", ifelse(V(nation_graph_chi)$decade == "188","tan", "white" ))))))))))))
+
+plot(nation_graph_chi, 
+     layout = layout.auto,
+     vertex.label.cex = 1,
+     #vertex.label.dist =.9,
+    # vertex.label.degree = -pi/2,
+     vertex.size = 13, 
+     margin = 0.3,
+     #vertex.label = NA, 
+     main = "Network Graph of Ojibwe Treaty Borrowing",
+     edge.width = fd_matches$n >0)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8, title="Decades",
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+
+```
+
+## Cluster Including the 1846 Comanche Treaty
+
+```{r}
+decomposed_broken_graph <- readRDS("decomposed_broken_graph.rds")
+
+com_0554_graph <- decomposed_broken_graph[[3]]
+
+
+V(com_0554_graph)$color <- ifelse(V(com_0554_graph)$decade == "177", "blue", ifelse(V(com_0554_graph)$decade == "178","cyan", ifelse(V(com_0554_graph)$decade == "179","darkmagenta", ifelse(V(com_0554_graph)$decade == "180","darkgreen", ifelse(V(com_0554_graph)$decade == "181","green", ifelse(V(com_0554_graph)$decade == "182","orange", ifelse(V(com_0554_graph)$decade == "183","springgreen2", ifelse(V(com_0554_graph)$decade == "184","red", ifelse(V(com_0554_graph)$decade == "185","hotpink", ifelse(V(com_0554_graph)$decade == "186","yellow", ifelse(V(com_0554_graph)$decade == "187","black", ifelse(V(com_0554_graph)$decade == "188","tan", "white" ))))))))))))
+
+plot(com_0554_graph, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 7, 
+     margin = -0,
+     vertex.label = NA, 
+     main = "Treaty Borrowing Cluster including the 1846 Comanche Treaty",
+     edge.width = fd_matches$n >2)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8, title="Decades",
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+```
+
+```{r}
+G2 <- decomposed_broken_graph[[2]]
+
+
+V(G2)$color <- ifelse(V(G2)$decade == "177", "blue", ifelse(V(G2)$decade == "178","cyan", ifelse(V(G2)$decade == "179","darkmagenta", ifelse(V(G2)$decade == "180","darkgreen", ifelse(V(G2)$decade == "181","green", ifelse(V(G2)$decade == "182","orange", ifelse(V(G2)$decade == "183","springgreen2", ifelse(V(G2)$decade == "184","red", ifelse(V(G2)$decade == "185","hotpink", ifelse(V(G2)$decade == "186","yellow", ifelse(V(G2)$decade == "187","black", ifelse(V(G2)$decade == "188","tan", "white" ))))))))))))
+
+plot(G2, 
+     layout = layout.auto,
+     vertex.label.cex = 0.6,
+     vertex.label.dist =0,
+     vertex.label.degree = pi,
+     vertex.size = 9, 
+     margin = -0,
+     #vertex.label = NA, 
+     main = "The Manypenny Cluster",
+     edge.width = fd_matches$n >2)
+legend("left", c("1770s","1780s", "1790s","1800s", "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s"),  pch=21, pt.cex=2, cex=.8, title="Decades",
+       pt.bg=c("blue", "cyan", "darkmagenta", "darkgreen", "green", "orange", "springgreen2", "red", "hotpink","yellow", "black", "tan"))
+```
+
+
+Another decomposition with a higher number of minimum vertices.
+```{r}
+components_whole2 <-decompose(sample_graph, mode = c("weak", "strong"), max.comps = NA,
+  min.vertices = 4)
+
+plot(components_whole2[[8]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Network Graph of Largest Treaty Cluster",
+    edge.width = fd_matches$n >2)
+```
+The Sioux Cluster
+```{r}
+plot(components_whole2[[2]],
+     layout = layout.auto,
+    vertex.label.cex = 0.6,
+    #vertex.label = NA,
+    margin = -0,
+     vertex.size = 1,
+    main = "Sioux Bands Cluster, 1865",
+    edge.width = fd_matches$n >3)
+```
+
+
+##PCA at the paragraph level. 
+```{r}
+#for paragraph level 
+files <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs",                    pattern = "*.txt",
+                  full.names = TRUE)
+
+
+reader <- function(f) {
+  require(stringr)
+  n <- parsed_treaties$file %>% str_replace("\\.txt", "")
+  doc <- readr::read_file(f)
+  names(doc) <- n
+  doc
+}
+
+it_files <- ifiles(files, reader = reader)
+it_tokens <- itoken(it_files,
+                   tokenizer = tokenizers::tokenize_words)
+
+vocab <- create_vocabulary(it_tokens)
+
+pruned_vocab <- prune_vocabulary(vocab, term_count_min = 10,
+term_count_max = 50000)
+vectorizer <- vocab_vectorizer(pruned_vocab)
+
+dtm <- create_dtm(it_tokens, vectorizer)
+rownames(dtm) <- basename(files) 
+
+dtmsimilarities <- wordVectors::cosineSimilarity(dtm[1:1000, , drop = FALSE], 
+                                              dtm[1:1000, , drop = FALSE])
+dtmsimilarities %>% View
+
+dtm2 <- as.matrix(dtm)
+
+pca <- prcomp(dtm2, scale. = FALSE)
+plot(pca)
+augment(pca) %>% select(1:6) %>% as_tibble() %>% View
+
+augment(pca) %>%
+ggplot(aes(.fittedPC1, .fittedPC2)) + 
+geom_point() 
+
+#(for labels) geom_text_repel(aes(label = .rownames))
+#saveRDS(pca,"pca_indian_treaties_paragraph_level.rds")
+```
+
+
+##K-Means at the Document Level
+ 
+```{r}
+
+treatycorpus <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-complete",                    pattern = "*.txt",
+                   full.names = TRUE)
+ 
+reader <- function(f) {
+  require(stringr)
+  n <- basename(f) %>% str_replace("\\.txt", "")
+  doc <- readr::read_file(f)
+  names(doc) <- n
+  doc
+}
+
+it_files2 <- ifiles(treatycorpus, reader = reader)
+it_tokens2 <- itoken(it_files2,
+                   tokenizer = tokenizers::tokenize_words)
+
+vocab2 <- create_vocabulary(it_tokens2)
+
+pruned_vocab2 <- prune_vocabulary(vocab2, term_count_min = 10,
+term_count_max = 50000)
+vectorizer2 <- vocab_vectorizer(pruned_vocab2)
+
+dtm2 <- create_dtm(it_tokens2, vectorizer2)
+rownames(dtm2) <- basename(treatycorpus)
+
+parsed_treaties <- readRDS("parsed_treaties.rds")
+addyear <- basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt")
+
+
+parsed_treaties <- parsed_treaties %>% 
+  mutate(document_id = basename(parsed_treaties$file) %>% str_replace("\\.htm", ".txt"))
+
+km <- kmeans(dtm2, centers = 10)
+
+k_clusters <- tibble(document_id = rownames(dtm2),
+                     cluster = km$cluster) %>% 
+  left_join(parsed_treaties, by = "document_id")
+
+k_clusters %>% arrange(cluster) %>% View
+
+plot(km$cluster)
+
+ggplot(k_clusters, aes(388, 388)) + geom_point()
+```
+
+
+Affinity Propogation Clustering
+```{r}
+
+scores_clustering <- similarities
+
+section_names <- lsh_subset(scores_clustering)
+
+lookup <- data_frame(section_names, index = 1:length(section_names))
+
+lookup
+
+scores_clustering <- scores_clustering %>% 
+  left_join(lookup, by = c("a" = "section_names")) %>% 
+  left_join(lookup, by = c("b" = "section_names")) 
+
+scores_clustering
+
+n <- length(section_names)
+m <- sparseMatrix(i = scores_clustering$index.x,
+                  j = scores_clustering$index.y,
+                  x = scores_clustering$score,
+                  dims = c(n, n), symmetric = TRUE)
+colnames(m) <- section_names
+rownames(m) <- section_names
+
+
+
+cluster_cache <- "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters.rds"
+if (!file.exists(cluster_cache)) {
+  timing <- system.time(
+    clu <- apcluster(s = m,
+                     maxits = 100e3, convits = 10e3,
+                     q = 0,
+                     lam = 0.975,
+                     seed = 42325, 
+                     includeSim = TRUE,
+                     )
+  )
+  saveRDS(clu, cluster_cache)
+ } else {
+  clu <- readRDS(cluster_cache)
+}
+
+clusters <- clu@clusters 
+names(clusters) <- names(clu@exemplars)
+clusters <- lapply(clusters, names)
+
+
+exemplars_corpus <- corpus2[names(clusters)]
+exemplars_scores <- exemplars_corpus %>% 
+  lsh(bands = 40) %>% 
+  lsh_candidates() %>% 
+  lsh_compare(exemplars_corpus, jaccard_similarity) %>% 
+  arrange(desc(score))
+
+#boxplot(exemplars_scores$score)
+#hist(exemplars_scores$score)
+
+join_threshold <- 0.15
+exemplars_scores <- exemplars_scores %>% 
+  filter(score >= 0.19)
+
+#hist(exemplars_scores$score)
+```
+
+Creating a Data Frame
+```{r}
+clusters_df <- clusters %>% 
+  seq_along() %>% 
+  lapply(function(i) {
+    exemplar <- names(clusters)[i]
+    doc <- clusters[[i]]
+    data_frame(exemplar, doc, cluster_id = i)
+  }) %>% 
+  bind_rows() %>% 
+  group_by(cluster_id) %>% 
+  mutate(n = n()) %>% 
+  ungroup() %>% 
+  arrange(desc(n))
+
+#write_csv(clusters_df, "C:/Users/Joshua/Documents/rdata/indian_treaties/clusters/clusters.csv")
+```
+
+
+```{r}
+cluster_df_years <- clusters_df %>%
+              mutate(document_id_a = get_treaty(exemplar)) %>%
+              mutate(document_id_b = get_treaty(doc)) 
+              
+cluster_df_years <- left_join(parsed_treaties, cluster_df_years, by = "document_id_a")
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4))
+
+cluster_df_years <- cluster_df_years %>% 
+                mutate(exemplar_year = year)
+
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4))
+
+cluster_df_years <- cluster_df_years %>%
+                mutate(document_id_b = document_id_b.y)
+
+cluster_df_years <- subset(cluster_df_years, select = -c(5))
+
+cluster_df_years <- left_join(parsed_treaties, cluster_df_years, by = "document_id_b")
+
+cluster_df_years <- cluster_df_years %>% 
+                mutate(doc_year = year)
+
+cluster_df_years <- subset(cluster_df_years, select = -c(1, 2, 3, 4, 5, 6, 7, 8))
+
+cluster_df_years <- na.omit(cluster_df_years)
+
+cluster_df_years <- cluster_df_years %>%
+                    mutate(borrow_span = (doc_year - exemplar_year))
+
+#saveRDS(cluster_df_years, "cluster_df_years.rds")
+#cluster_df_years <- readRDS("cluster_df_years.rds")
+
+hist(abs(cluster_df_years$borrow_span),
+main="Histogram of Paragraph Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower in years", 
+     border="black", 
+     col="green",
+     xlim=c(0,60),
+     ylim= c(0,100),
+     las=1,
+     #labels =  TRUE,
+     breaks= 50)
+
+plot(h$mids, h$counts, log="y", type='h', lwd=10, lend=2, col= "blue")
+
+```
+```{r}
+hist(abs(cluster_df_years$borrow_span),
+main="Histogram of Paragraph Borrowing Across Time", 
+     xlab="Difference in time between exemplar and borrower in years\n *The first column (1-2 years) = 1113", 
+     border="black", 
+     col="green",
+     xlim=c(0,60),
+     ylim= c(0,100),
+     las=1,
+     breaks=50)
+```
+
+```{r}
+g <- make_ring(10) %>%
+  delete_edges(seq(1, 9, by = 2))
+g
+
+plot(g)
+g <- make_ring(10) %>%
+  delete_edges("8|9")
+plot(g)
+```
+
+```{r}
+alignment <- align_local(corpus2[["nez0702-00009"]], corpus2[["qui0719-00007"]], match = 3L, mismatch = -1L, gap = -1L,
+edit_mark = "#", progress = interactive())
+
+
+str(alignment)
+
+
+smith_waterman <- (function(x, y) { align_local(x, y, match = 3L, mismatch = -1L, gap = -1L,
+edit_mark = "#", progress = interactive())
+  
+})
+
+treaty_1 <- test[1]
+treaty_1 <-as.vector(test$a)
+
+treaty_2 <-test[2]
+treaty_2 <-as.vector(test$b)
+
+smith_waterman(corpus2[["nez0702-00009"]], corpus2[["qui0719-00007"]])
+
+sw_comp <- lapply(treaty_1)(smith_waterman(corpus2[[treaty_1]], corpus2[[treaty_2]]))
+
+
+sw_comp <- lapply(smith_waterman(treaty_1, treaty_2))
+
+sw_comp <- pairwise_compare(corpus, align_local, directional = FALSE)
+
+
+
+
+align_compare <- function(similarities_240_240, corpus_df) {
+ res <- textreuse::align_local(corpus_df[[similarities_240_240[[1, "a"]]]],
+                               corpus_df[[similarities_240_240[[1, "b"]]]]) 
+ res$score
+}
+
+align_compare <- function(similarities_240_240, corpus) {
+res <- as.data.frame(textreuse::align_local(corpus[[similarities_240_240[[1, "a"]]]],
+                               corpus[[similarities_240_240[[1, "b"]]]]))
+ res$score
+}
+
+
+
+
+corpus_df <- list.files("C:/Users/Joshua/Documents/rdata/indian_treaties/treaty-paragraphs", 
+                   pattern = "*.txt",
+                   full.names = TRUE)
+
+
+by_row(align_compare, corpus_df, .collate = "cols", .to = "alignment")
+
+score <- by_row(corpus_df, align_compare,  .collate = "cols", .to = "alignment")
+
+
+```
+
